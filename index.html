@@ -180,11 +180,6 @@
     }
 
 
-    /*
-     * Hide native checkbox visually,
-     * but keep it accessible.
-     */
-
     .type-checkbox {
 
       position:
@@ -254,10 +249,6 @@
         #f8fafc;
     }
 
-
-    /*
-     * Selected checkbox.
-     */
 
     .type-checkbox:checked
     + .type-label {
@@ -538,6 +529,83 @@
 
     /*
      * ==========================================
+     * PO BOQ
+     * ==========================================
+     */
+
+    .boq-field {
+
+      margin-bottom:
+        26px;
+    }
+
+
+    .boq-field label {
+
+      display:
+        block;
+
+      margin-bottom:
+        9px;
+
+      font-size:
+        15px;
+
+      font-weight:
+        700;
+
+      color:
+        #1e293b;
+    }
+
+
+    .boq-input {
+
+      width:
+        100%;
+
+      height:
+        54px;
+
+      padding:
+        0 15px;
+
+      border:
+        1px solid
+        #d8dee8;
+
+      border-radius:
+        10px;
+
+      background:
+        #f1f5f9;
+
+      color:
+        #475569;
+
+      font-size:
+        16px;
+
+      font-weight:
+        600;
+
+      outline:
+        none;
+
+      cursor:
+        not-allowed;
+    }
+
+
+    .boq-input:disabled {
+
+      opacity:
+        1;
+    }
+
+
+    /*
+     * ==========================================
      * QUANTITY
      * ==========================================
      */
@@ -618,6 +686,39 @@
       box-shadow:
         0 0 0 3px
         rgba(37, 99, 235, 0.12);
+    }
+
+
+    .quantity-input.invalid {
+
+      border-color:
+        #dc2626;
+
+      box-shadow:
+        0 0 0 3px
+        rgba(220, 38, 38, 0.10);
+    }
+
+
+    /*
+     * ==========================================
+     * QUANTITY HINT
+     * ==========================================
+     */
+
+    .quantity-hint {
+
+      margin-top:
+        7px;
+
+      margin-left:
+        155px;
+
+      font-size:
+        13px;
+
+      color:
+        #64748b;
     }
 
 
@@ -902,6 +1003,14 @@
       }
 
 
+      .quantity-hint {
+
+        margin-left:
+          0;
+
+      }
+
+
       .save-container {
 
         justify-content:
@@ -970,7 +1079,7 @@
 
 
       <!-- ==========================================
-           SUBMITTAL TYPE
+           SUBMITTAL TYPES
            ========================================== -->
 
       <div class="type-section">
@@ -1209,6 +1318,31 @@
 
 
       <!-- ==========================================
+           PO BOQ
+           ========================================== -->
+
+      <div class="boq-field">
+
+        <label
+          for="poBoq"
+        >
+          PO BOQ
+        </label>
+
+
+        <input
+          type="text"
+          id="poBoq"
+          class="boq-input"
+          value=""
+          placeholder="Select Item Name and Part Number"
+          disabled
+        >
+
+      </div>
+
+
+      <!-- ==========================================
            QUANTITY
            ========================================== -->
 
@@ -1222,14 +1356,26 @@
         </label>
 
 
-        <input
-          type="text"
-          id="quantity"
-          class="quantity-input"
-          inputmode="decimal"
-          autocomplete="off"
-          placeholder="Enter quantity"
-        >
+        <div>
+
+          <input
+            type="text"
+            id="quantity"
+            class="quantity-input"
+            inputmode="decimal"
+            autocomplete="off"
+            placeholder="Enter quantity"
+          >
+
+
+          <div
+            id="quantityHint"
+            class="quantity-hint"
+          >
+            Select a Part Number to see the maximum allowed quantity.
+          </div>
+
+        </div>
 
       </div>
 
@@ -1309,6 +1455,21 @@
         <div class="result-row">
 
           <span class="result-label">
+            PO BOQ
+          </span>
+
+          <span
+            id="selectedBoq"
+            class="result-value"
+          >
+          </span>
+
+        </div>
+
+
+        <div class="result-row">
+
+          <span class="result-label">
             Quantity
           </span>
 
@@ -1339,7 +1500,7 @@
      */
 
     const API_URL =
-      'https://script.google.com/macros/s/AKfycbwaKLA3oCJTI_eP2_fUhj33RjC8WvsXWfPIDq_g1-sLN21ScHLTiCzRvx__76_auE4t/exec';
+      'https://script.google.com/macros/s/AKfycbxFPkQtN7tZZGxzoG-4qvmC4A6jR_TMdzslfvr5dSTpZzBSH3vsXCALWfH5pvTqnojo2g/exec';
 
 
     /*
@@ -1355,6 +1516,15 @@
       dependentPartNumbers: {}
 
     };
+
+
+    /*
+     * =========================================================
+     * CURRENT BOQ
+     * =========================================================
+     */
+
+    let currentBoq = null;
 
 
     /*
@@ -1546,10 +1716,287 @@
             value;
 
 
+          validateQuantityInput();
+
           hideError();
 
           hideSuccess();
 
+        }
+      );
+
+    }
+
+
+    /*
+     * =========================================================
+     * VALIDATE QUANTITY AGAINST PO BOQ
+     * =========================================================
+     */
+
+    function validateQuantityInput() {
+
+      const quantityInput =
+        document.getElementById(
+          'quantity'
+        );
+
+
+      const quantity =
+        quantityInput.value.trim();
+
+
+      quantityInput.classList.remove(
+        'invalid'
+      );
+
+
+      /*
+       * No quantity entered yet.
+       */
+      if (!quantity) {
+
+        return true;
+
+      }
+
+
+      /*
+       * Basic number validation.
+       */
+      if (
+        !/^\d+(\.\d+)?$/.test(
+          quantity
+        )
+      ) {
+
+        quantityInput.classList.add(
+          'invalid'
+        );
+
+        return false;
+
+      }
+
+
+      /*
+       * BOQ is not selected yet.
+       */
+      if (
+        currentBoq === null
+      ) {
+
+        return true;
+
+      }
+
+
+      const quantityNumber =
+        Number(
+          quantity
+        );
+
+
+      /*
+       * Quantity cannot exceed BOQ.
+       */
+      if (
+        quantityNumber >
+        currentBoq
+      ) {
+
+        quantityInput.classList.add(
+          'invalid'
+        );
+
+        return false;
+
+      }
+
+
+      return true;
+
+    }
+
+
+    /*
+     * =========================================================
+     * SHOW BOQ
+     * =========================================================
+     */
+
+    function showBoq(
+      boq
+    ) {
+
+      const boqInput =
+        document.getElementById(
+          'poBoq'
+        );
+
+
+      const quantityHint =
+        document.getElementById(
+          'quantityHint'
+        );
+
+
+      /*
+       * Reset current BOQ.
+       */
+      currentBoq =
+        null;
+
+
+      /*
+       * No BOQ.
+       */
+      if (
+        boq === undefined ||
+        boq === null ||
+        String(boq).trim() === ''
+      ) {
+
+        boqInput.value =
+          'No BOQ available';
+
+
+        quantityHint.textContent =
+          'No BOQ was found for this Part Number.';
+
+
+        return;
+
+      }
+
+
+      /*
+       * Display original BOQ.
+       */
+      boqInput.value =
+        String(
+          boq
+        );
+
+
+      /*
+       * Convert BOQ to number.
+       *
+       * Commas are supported.
+       */
+      const normalizedBoq =
+        String(
+          boq
+        )
+          .replace(
+            /,/g,
+            ''
+          )
+          .trim();
+
+
+      const boqNumber =
+        Number(
+          normalizedBoq
+        );
+
+
+      if (
+        Number.isFinite(
+          boqNumber
+        ) &&
+        boqNumber >= 0
+      ) {
+
+        currentBoq =
+          boqNumber;
+
+
+        quantityHint.textContent =
+          'Maximum allowed quantity: ' +
+          formatNumber(
+            boqNumber
+          );
+
+      } else {
+
+        quantityHint.textContent =
+          'The BOQ value is not a valid number.';
+
+      }
+
+
+      /*
+       * Revalidate quantity.
+       */
+      validateQuantityInput();
+
+    }
+
+
+    /*
+     * =========================================================
+     * RESET BOQ
+     * =========================================================
+     */
+
+    function resetBoq() {
+
+      currentBoq =
+        null;
+
+
+      const boqInput =
+        document.getElementById(
+          'poBoq'
+        );
+
+
+      const quantityHint =
+        document.getElementById(
+          'quantityHint'
+        );
+
+
+      boqInput.value =
+        '';
+
+
+      boqInput.placeholder =
+        'Select Item Name and Part Number';
+
+
+      quantityHint.textContent =
+        'Select a Part Number to see the maximum allowed quantity.';
+
+
+      document
+        .getElementById(
+          'quantity'
+        )
+        .classList.remove(
+          'invalid'
+        );
+
+    }
+
+
+    /*
+     * =========================================================
+     * FORMAT NUMBER
+     * =========================================================
+     */
+
+    function formatNumber(
+      number
+    ) {
+
+      return Number(
+        number
+      ).toLocaleString(
+        'en-US',
+        {
+          maximumFractionDigits: 10
         }
       );
 
@@ -1659,6 +2106,23 @@
 
 
       /*
+       * BOQ must exist.
+       */
+
+      if (
+        currentBoq === null
+      ) {
+
+        showError(
+          'No valid PO BOQ was found for the selected Part Number.'
+        );
+
+        return;
+
+      }
+
+
+      /*
        * Get Quantity.
        */
 
@@ -1686,7 +2150,7 @@
 
 
       /*
-       * Validate Quantity.
+       * Validate Quantity format.
        */
 
       if (
@@ -1722,6 +2186,44 @@
         showError(
           'Quantity must be greater than zero.'
         );
+
+        quantityInput.focus();
+
+        return;
+
+      }
+
+
+      /*
+       * =======================================================
+       * IMPORTANT:
+       *
+       * Quantity cannot be greater than PO BOQ.
+       * =======================================================
+       */
+
+      if (
+        quantityNumber >
+        currentBoq
+      ) {
+
+        quantityInput.classList.add(
+          'invalid'
+        );
+
+
+        showError(
+          'Quantity (' +
+          formatNumber(
+            quantityNumber
+          ) +
+          ') cannot be greater than PO BOQ (' +
+          formatNumber(
+            currentBoq
+          ) +
+          ').'
+        );
+
 
         quantityInput.focus();
 
@@ -1786,7 +2288,6 @@
       partNumber,
       quantity
     ) {
-
 
       /*
        * Disable Save button.
@@ -1868,6 +2369,12 @@
               'selectedPartNumber'
             ).textContent =
               response.data.partNumber;
+
+
+            document.getElementById(
+              'selectedBoq'
+            ).textContent =
+              response.data.boq;
 
 
             document.getElementById(
@@ -2186,6 +2693,9 @@
       );
 
 
+      resetBoq();
+
+
       const itemNames =
         databaseData.itemNames || [];
 
@@ -2263,11 +2773,22 @@
       );
 
 
+      resetBoq();
+
       hideSelectionResult();
 
       hideError();
 
       hideSuccess();
+
+
+      /*
+       * Clear quantity.
+       */
+      document.getElementById(
+        'quantity'
+      ).value =
+        '';
 
 
       if (
@@ -2328,11 +2849,184 @@
 
     function handlePartNumberChange() {
 
+      const itemNameSelect =
+        document.getElementById(
+          'itemName'
+        );
+
+
+      const partNumberSelect =
+        document.getElementById(
+          'partNumber'
+        );
+
+
+      const selectedItemName =
+        itemNameSelect.value;
+
+
+      const selectedPartNumber =
+        partNumberSelect.value;
+
+
+      /*
+       * Reset first.
+       */
+      resetBoq();
+
+
       hideSelectionResult();
 
       hideError();
 
       hideSuccess();
+
+
+      /*
+       * Clear Quantity when Part Number changes.
+       */
+      document.getElementById(
+        'quantity'
+      ).value =
+        '';
+
+
+      if (
+        !selectedItemName ||
+        !selectedPartNumber
+      ) {
+
+        return;
+
+      }
+
+
+      /*
+       * Find the selected Part Number
+       * in the current Item Name.
+       *
+       * We need BOQ and the other details.
+       *
+       * The original getDatabaseData API only returns
+       * Part Number lists, so we request the details
+       * from the same API using saveSubmittal validation
+       * is NOT suitable here.
+       *
+       * Therefore we use the lookup API action below.
+       */
+
+      loadPartNumberDetails(
+        selectedPartNumber
+      );
+
+    }
+
+
+    /*
+     * =========================================================
+     * LOAD PART NUMBER DETAILS
+     * =========================================================
+     */
+
+    function loadPartNumberDetails(
+      partNumber
+    ) {
+
+      const callbackName =
+        'handlePartNumberDetails_' +
+        Date.now();
+
+
+      window[callbackName] =
+        function(response) {
+
+          try {
+
+            if (
+              !response ||
+              !response.success
+            ) {
+
+              throw new Error(
+                response &&
+                response.error
+                  ? response.error
+                  : 'Unable to load Part Number details.'
+              );
+
+            }
+
+
+            showBoq(
+              response.data.boq
+            );
+
+
+          } catch (error) {
+
+            resetBoq();
+
+
+            showError(
+              error &&
+              error.message
+                ? error.message
+                : 'Unable to load Part Number details.'
+            );
+
+          } finally {
+
+            cleanupJsonp(
+              script,
+              callbackName
+            );
+
+          }
+
+        };
+
+
+      const script =
+        document.createElement(
+          'script'
+        );
+
+
+      script.src =
+        API_URL +
+        '?action=getPartNumberDetails' +
+        '&prefix=' +
+        encodeURIComponent(
+          callbackName
+        ) +
+        '&partNumber=' +
+        encodeURIComponent(
+          partNumber
+        );
+
+
+      script.onerror =
+        function() {
+
+          resetBoq();
+
+
+          showError(
+            'Unable to connect to the Google Apps Script API.'
+          );
+
+
+          cleanupJsonp(
+            script,
+            callbackName
+          );
+
+        };
+
+
+      document.body.appendChild(
+        script
+      );
 
     }
 
@@ -2395,6 +3089,13 @@
 
       partNumberSelect.disabled =
         true;
+
+
+      /*
+       * Reset BOQ.
+       */
+
+      resetBoq();
 
 
       /*
