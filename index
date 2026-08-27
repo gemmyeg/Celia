@@ -1,871 +1,172 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
-  <head>
+<head>
 
-    <base target="_top">
+  <meta charset="UTF-8">
 
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0"
-    >
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
 
-    <title>Item Selection</title>
+  <title>Item Selection</title>
 
 
-    <style>
+  <link
+    rel="stylesheet"
+    href="style.css"
+  >
 
-      * {
-        box-sizing: border-box;
-      }
+</head>
 
 
-      body {
+<body>
 
-        margin: 0;
-        padding: 0;
 
-        font-family:
-          Arial,
-          Helvetica,
-          sans-serif;
+  <main class="page">
 
-        background: #f5f7fb;
 
-        color: #1f2937;
-      }
+    <section class="card">
 
 
-      .page {
+      <div class="header">
 
-        min-height: 100vh;
-
-        display: flex;
-
-        justify-content: center;
-
-        align-items: flex-start;
-
-        padding: 40px 20px;
-      }
-
-
-      .card {
-
-        width: 100%;
-
-        max-width: 600px;
-
-        background: #ffffff;
-
-        border-radius: 14px;
-
-        padding: 30px;
-
-        box-shadow:
-          0 8px 30px
-          rgba(0, 0, 0, 0.08);
-      }
-
-
-      .title {
-
-        margin: 0 0 8px 0;
-
-        font-size: 26px;
-
-        font-weight: 700;
-
-        color: #111827;
-      }
-
-
-      .subtitle {
-
-        margin: 0 0 30px 0;
-
-        color: #6b7280;
-
-        font-size: 14px;
-      }
-
-
-      .field {
-
-        margin-bottom: 24px;
-      }
-
-
-      .field-label {
-
-        display: block;
-
-        margin-bottom: 8px;
-
-        font-size: 14px;
-
-        font-weight: 700;
-
-        color: #374151;
-      }
-
-
-      select {
-
-        width: 100%;
-
-        height: 48px;
-
-        padding: 0 14px;
-
-        border:
-          1px solid
-          #d1d5db;
-
-        border-radius: 8px;
-
-        background: #ffffff;
-
-        color: #111827;
-
-        font-size: 15px;
-
-        outline: none;
-
-        cursor: pointer;
-
-        transition:
-          border-color 0.2s ease,
-          box-shadow 0.2s ease;
-      }
-
-
-      select:focus {
-
-        border-color: #2563eb;
-
-        box-shadow:
-          0 0 0 3px
-          rgba(37, 99, 235, 0.12);
-      }
-
-
-      select:disabled {
-
-        background: #f3f4f6;
-
-        color: #9ca3af;
-
-        cursor: not-allowed;
-      }
-
-
-      .loading {
-
-        display: flex;
-
-        align-items: center;
-
-        gap: 10px;
-
-        margin-bottom: 20px;
-
-        color: #6b7280;
-
-        font-size: 14px;
-      }
-
-
-      .spinner {
-
-        width: 18px;
-
-        height: 18px;
-
-        border:
-          2px solid
-          #e5e7eb;
-
-        border-top-color:
-          #2563eb;
-
-        border-radius: 50%;
-
-        animation:
-          spin 0.8s linear infinite;
-      }
-
-
-      @keyframes spin {
-
-        to {
-          transform: rotate(360deg);
-        }
-
-      }
-
-
-      .message {
-
-        padding: 12px 14px;
-
-        border-radius: 8px;
-
-        font-size: 14px;
-
-        margin-top: 15px;
-
-        display: none;
-      }
-
-
-      .message.error {
-
-        display: block;
-
-        background: #fef2f2;
-
-        color: #b91c1c;
-
-        border:
-          1px solid
-          #fecaca;
-      }
-
-
-      .selection-result {
-
-        margin-top: 28px;
-
-        padding: 18px;
-
-        border-radius: 10px;
-
-        background: #f8fafc;
-
-        border:
-          1px solid
-          #e5e7eb;
-
-        display: none;
-      }
-
-
-      .selection-result.visible {
-
-        display: block;
-      }
-
-
-      .result-row {
-
-        display: flex;
-
-        justify-content:
-          space-between;
-
-        gap: 20px;
-
-        padding: 8px 0;
-      }
-
-
-      .result-label {
-
-        font-weight: 700;
-
-        color: #374151;
-      }
-
-
-      .result-value {
-
-        text-align: right;
-
-        color: #111827;
-
-        word-break: break-word;
-      }
-
-    </style>
-
-  </head>
-
-
-  <body>
-
-
-    <div class="page">
-
-
-      <div class="card">
-
-
-        <h1 class="title">
+        <h1>
           Item Selection
         </h1>
 
-
-        <p class="subtitle">
+        <p>
           Select an Item Name to load its related Part Numbers.
         </p>
 
+      </div>
 
-        <div
-          id="loading"
-          class="loading"
+
+      <!-- Loading -->
+
+      <div
+        id="loading"
+        class="loading"
+      >
+
+        <div class="spinner"></div>
+
+        <span>
+          Loading database...
+        </span>
+
+      </div>
+
+
+      <!-- Error -->
+
+      <div
+        id="errorMessage"
+        class="message error"
+        hidden
+      >
+      </div>
+
+
+      <!-- Item Name -->
+
+      <div class="field">
+
+        <label
+          for="itemName"
+        >
+          Item Name
+        </label>
+
+
+        <select
+          id="itemName"
+          disabled
         >
 
-          <div class="spinner"></div>
+          <option value="">
+            Select Item Name
+          </option>
 
-          <span>
-            Loading database...
+        </select>
+
+      </div>
+
+
+      <!-- Part Number -->
+
+      <div class="field">
+
+        <label
+          for="partNumber"
+        >
+          Part Number
+        </label>
+
+
+        <select
+          id="partNumber"
+          disabled
+        >
+
+          <option value="">
+            Select Part Number
+          </option>
+
+        </select>
+
+      </div>
+
+
+      <!-- Selection Result -->
+
+      <div
+        id="selectionResult"
+        class="selection-result"
+        hidden
+      >
+
+        <div class="result-row">
+
+          <span class="result-label">
+            Item Name
+          </span>
+
+          <span
+            id="selectedItemName"
+            class="result-value"
+          >
           </span>
 
         </div>
 
 
-        <div
-          id="errorMessage"
-          class="message"
-        >
-        </div>
+        <div class="result-row">
 
-
-        <!-- Item Name -->
-
-        <div class="field">
-
-          <label
-            class="field-label"
-            for="itemName"
-          >
-            Item Name
-          </label>
-
-
-          <select
-            id="itemName"
-            disabled
-          >
-
-            <option value="">
-              Select Item Name
-            </option>
-
-          </select>
-
-        </div>
-
-
-        <!-- Part Number -->
-
-        <div class="field">
-
-          <label
-            class="field-label"
-            for="partNumber"
-          >
+          <span class="result-label">
             Part Number
-          </label>
+          </span>
 
-
-          <select
-            id="partNumber"
-            disabled
+          <span
+            id="selectedPartNumber"
+            class="result-value"
           >
-
-            <option value="">
-              Select Part Number
-            </option>
-
-          </select>
+          </span>
 
         </div>
-
-
-        <!-- Result -->
-
-        <div
-          id="selectionResult"
-          class="selection-result"
-        >
-
-          <div class="result-row">
-
-            <span class="result-label">
-              Item Name
-            </span>
-
-
-            <span
-              id="selectedItemName"
-              class="result-value"
-            >
-            </span>
-
-          </div>
-
-
-          <div class="result-row">
-
-            <span class="result-label">
-              Part Number
-            </span>
-
-
-            <span
-              id="selectedPartNumber"
-              class="result-value"
-            >
-            </span>
-
-          </div>
-
-        </div>
-
 
       </div>
 
 
-    </div>
+    </section>
 
 
-    <script>
+  </main>
 
 
-      let databaseData = {
+  <script src="script.js"></script>
 
-        itemNames: [],
-
-        dependentPartNumbers: {}
-
-      };
-
-
-      document.addEventListener(
-        'DOMContentLoaded',
-        function() {
-
-          loadDatabaseData();
-
-        }
-      );
-
-
-      /**
-       * Load data from Google Sheet
-       */
-
-      function loadDatabaseData() {
-
-        showLoading(true);
-
-        hideError();
-
-
-        google.script.run
-
-          .withSuccessHandler(
-            function(data) {
-
-              databaseData =
-                data || {
-
-                  itemNames: [],
-
-                  dependentPartNumbers: {}
-
-                };
-
-
-              populateItemNames();
-
-
-              showLoading(false);
-
-            }
-          )
-
-          .withFailureHandler(
-            function(error) {
-
-              showLoading(false);
-
-
-              showError(
-
-                error &&
-                error.message
-
-                  ? error.message
-
-                  : 'Unable to load database data.'
-
-              );
-
-            }
-          )
-
-          .getDatabaseData();
-
-      }
-
-
-      /**
-       * Populate Item Name dropdown
-       */
-
-      function populateItemNames() {
-
-        const itemNameSelect =
-          document.getElementById(
-            'itemName'
-          );
-
-
-        const partNumberSelect =
-          document.getElementById(
-            'partNumber'
-          );
-
-
-        clearSelect(
-
-          itemNameSelect,
-
-          'Select Item Name'
-
-        );
-
-
-        clearSelect(
-
-          partNumberSelect,
-
-          'Select Part Number'
-
-        );
-
-
-        const itemNames =
-          databaseData.itemNames || [];
-
-
-        itemNames.forEach(
-          function(itemName) {
-
-            const option =
-              document.createElement(
-                'option'
-              );
-
-
-            option.value =
-              itemName;
-
-
-            option.textContent =
-              itemName;
-
-
-            itemNameSelect.appendChild(
-              option
-            );
-
-          }
-        );
-
-
-        itemNameSelect.disabled =
-          itemNames.length === 0;
-
-
-        partNumberSelect.disabled =
-          true;
-
-
-        itemNameSelect.addEventListener(
-
-          'change',
-
-          handleItemNameChange
-
-        );
-
-
-        partNumberSelect.addEventListener(
-
-          'change',
-
-          handlePartNumberChange
-
-        );
-
-      }
-
-
-      /**
-       * Handle Item Name selection
-       */
-
-      function handleItemNameChange() {
-
-        const itemNameSelect =
-          document.getElementById(
-            'itemName'
-          );
-
-
-        const partNumberSelect =
-          document.getElementById(
-            'partNumber'
-          );
-
-
-        const selectedItemName =
-          itemNameSelect.value;
-
-
-        clearSelect(
-
-          partNumberSelect,
-
-          'Select Part Number'
-
-        );
-
-
-        hideSelectionResult();
-
-
-        if (!selectedItemName) {
-
-          partNumberSelect.disabled =
-            true;
-
-          return;
-
-        }
-
-
-        const partNumbers =
-          databaseData
-            .dependentPartNumbers[
-              selectedItemName
-            ] || [];
-
-
-        partNumbers.forEach(
-
-          function(partNumber) {
-
-            const option =
-              document.createElement(
-                'option'
-              );
-
-
-            option.value =
-              partNumber;
-
-
-            option.textContent =
-              partNumber;
-
-
-            partNumberSelect.appendChild(
-              option
-            );
-
-          }
-
-        );
-
-
-        partNumberSelect.disabled =
-          partNumbers.length === 0;
-
-      }
-
-
-      /**
-       * Handle Part Number selection
-       */
-
-      function handlePartNumberChange() {
-
-        const itemNameSelect =
-          document.getElementById(
-            'itemName'
-          );
-
-
-        const partNumberSelect =
-          document.getElementById(
-            'partNumber'
-          );
-
-
-        const selectedItemName =
-          itemNameSelect.value;
-
-
-        const selectedPartNumber =
-          partNumberSelect.value;
-
-
-        if (
-
-          !selectedItemName ||
-
-          !selectedPartNumber
-
-        ) {
-
-          hideSelectionResult();
-
-          return;
-
-        }
-
-
-        document.getElementById(
-          'selectedItemName'
-        ).textContent =
-          selectedItemName;
-
-
-        document.getElementById(
-          'selectedPartNumber'
-        ).textContent =
-          selectedPartNumber;
-
-
-        document.getElementById(
-          'selectionResult'
-        ).classList.add(
-          'visible'
-        );
-
-      }
-
-
-      /**
-       * Clear a select element
-       */
-
-      function clearSelect(
-
-        selectElement,
-
-        placeholder
-
-      ) {
-
-        selectElement.innerHTML =
-          '';
-
-
-        const option =
-          document.createElement(
-            'option'
-          );
-
-
-        option.value =
-          '';
-
-
-        option.textContent =
-          placeholder;
-
-
-        selectElement.appendChild(
-          option
-        );
-
-      }
-
-
-      /**
-       * Loading indicator
-       */
-
-      function showLoading(show) {
-
-        document.getElementById(
-          'loading'
-        ).style.display =
-          show
-            ? 'flex'
-            : 'none';
-
-      }
-
-
-      /**
-       * Error message
-       */
-
-      function showError(message) {
-
-        const element =
-          document.getElementById(
-            'errorMessage'
-          );
-
-
-        element.textContent =
-          message;
-
-
-        element.className =
-          'message error';
-
-      }
-
-
-      /**
-       * Hide error
-       */
-
-      function hideError() {
-
-        const element =
-          document.getElementById(
-            'errorMessage'
-          );
-
-
-        element.textContent =
-          '';
-
-
-        element.className =
-          'message';
-
-      }
-
-
-      /**
-       * Hide result
-       */
-
-      function hideSelectionResult() {
-
-        document.getElementById(
-          'selectionResult'
-        ).classList.remove(
-          'visible'
-        );
-
-      }
-
-
-    </script>
-
-
-  </body>
+</body>
 
 </html>
