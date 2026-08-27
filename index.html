@@ -722,6 +722,16 @@
     }
 
 
+    .quantity-hint.invalid {
+
+      color:
+        #b91c1c;
+
+      font-weight:
+        700;
+    }
+
+
     /*
      * ==========================================
      * SAVE BUTTON
@@ -1742,6 +1752,12 @@
         );
 
 
+      const quantityHint =
+        document.getElementById(
+          'quantityHint'
+        );
+
+
       const quantity =
         quantityInput.value.trim();
 
@@ -1751,10 +1767,27 @@
       );
 
 
+      quantityHint.classList.remove(
+        'invalid'
+      );
+
+
       /*
        * No quantity entered yet.
        */
       if (!quantity) {
+
+        if (
+          currentBoq !== null
+        ) {
+
+          quantityHint.textContent =
+            'Maximum allowed quantity: ' +
+            formatNumber(
+              currentBoq
+            );
+
+        }
 
         return true;
 
@@ -1773,6 +1806,13 @@
         quantityInput.classList.add(
           'invalid'
         );
+
+        quantityHint.classList.add(
+          'invalid'
+        );
+
+        quantityHint.textContent =
+          'Quantity must contain numbers only.';
 
         return false;
 
@@ -1799,6 +1839,7 @@
 
       /*
        * Quantity cannot exceed BOQ.
+       * Show the error directly beside the Quantity field.
        */
       if (
         quantityNumber >
@@ -1809,10 +1850,30 @@
           'invalid'
         );
 
+        quantityHint.classList.add(
+          'invalid'
+        );
+
+        quantityHint.textContent =
+          'Quantity cannot be greater than PO BOQ (' +
+          formatNumber(
+            currentBoq
+          ) +
+          ').';
+
         return false;
 
       }
 
+
+      /*
+       * Valid quantity.
+       */
+      quantityHint.textContent =
+        'Maximum allowed quantity: ' +
+        formatNumber(
+          currentBoq
+        );
 
       return true;
 
@@ -2037,28 +2098,8 @@
 
 
       /*
-       * Get selected type.
-       */
-
-      const selectedType =
-        getSelectedType();
-
-
-      if (!selectedType) {
-
-        showError(
-          'Please select one Submittal Type.'
-        );
-
-        return;
-
-      }
-
-
-      /*
        * Get Item Name.
        */
-
       const itemNameSelect =
         document.getElementById(
           'itemName'
@@ -2083,7 +2124,6 @@
       /*
        * Get Part Number.
        */
-
       const partNumberSelect =
         document.getElementById(
           'partNumber'
@@ -2108,7 +2148,6 @@
       /*
        * BOQ must exist.
        */
-
       if (
         currentBoq === null
       ) {
@@ -2125,7 +2164,6 @@
       /*
        * Get Quantity.
        */
-
       const quantityInput =
         document.getElementById(
           'quantity'
@@ -2152,15 +2190,33 @@
       /*
        * Validate Quantity format.
        */
-
       if (
         !/^\d+(\.\d+)?$/.test(
           quantity
         )
       ) {
 
+        quantityInput.classList.add(
+          'invalid'
+        );
+
+        document
+          .getElementById(
+            'quantityHint'
+          )
+          .classList.add(
+            'invalid'
+          );
+
+        document
+          .getElementById(
+            'quantityHint'
+          )
+          .textContent =
+          'Quantity must contain numbers only.';
+
         showError(
-          'Quantity must contain numbers only.'
+          'Please correct the Quantity before saving.'
         );
 
         quantityInput.focus();
@@ -2183,8 +2239,27 @@
         quantityNumber <= 0
       ) {
 
+        quantityInput.classList.add(
+          'invalid'
+        );
+
+        document
+          .getElementById(
+            'quantityHint'
+          )
+          .classList.add(
+            'invalid'
+          );
+
+        document
+          .getElementById(
+            'quantityHint'
+          )
+          .textContent =
+          'Quantity must be greater than zero.';
+
         showError(
-          'Quantity must be greater than zero.'
+          'Please enter a valid Quantity greater than zero.'
         );
 
         quantityInput.focus();
@@ -2199,9 +2274,11 @@
        * IMPORTANT:
        *
        * Quantity cannot be greater than PO BOQ.
+       * This validation is performed before checking the
+       * Submittal Type so the user receives the correct
+       * Quantity error instead of an unrelated Type error.
        * =======================================================
        */
-
       if (
         quantityNumber >
         currentBoq
@@ -2211,6 +2288,21 @@
           'invalid'
         );
 
+        const quantityHint =
+          document.getElementById(
+            'quantityHint'
+          );
+
+        quantityHint.classList.add(
+          'invalid'
+        );
+
+        quantityHint.textContent =
+          'Quantity cannot be greater than PO BOQ (' +
+          formatNumber(
+            currentBoq
+          ) +
+          ').';
 
         showError(
           'Quantity (' +
@@ -2221,9 +2313,12 @@
           formatNumber(
             currentBoq
           ) +
-          ').'
+          '). Please enter a quantity of ' +
+          formatNumber(
+            currentBoq
+          ) +
+          ' or less.'
         );
-
 
         quantityInput.focus();
 
@@ -2233,9 +2328,27 @@
 
 
       /*
+       * Get selected type only after all quantity validation
+       * has passed.
+       */
+      const selectedType =
+        getSelectedType();
+
+
+      if (!selectedType) {
+
+        showError(
+          'Please select one Submittal Type.'
+        );
+
+        return;
+
+      }
+
+
+      /*
        * Send save request.
        */
-
       saveSubmittal(
         selectedType,
         itemName,
