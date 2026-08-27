@@ -2992,12 +2992,22 @@
         );
 
 
+      const itemName =
+        document.getElementById(
+          'itemName'
+        ).value;
+
+
       script.src =
         API_URL +
-        '?action=getPartNumberDetails' +
+        '?action=getPartDetails' +
         '&prefix=' +
         encodeURIComponent(
           callbackName
+        ) +
+        '&itemName=' +
+        encodeURIComponent(
+          itemName
         ) +
         '&partNumber=' +
         encodeURIComponent(
