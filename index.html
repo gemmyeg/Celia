@@ -689,6 +689,19 @@
     }
 
 
+    .quantity-input:disabled {
+
+      background:
+        #f8fafc;
+
+      color:
+        #aeb8c7;
+
+      cursor:
+        not-allowed;
+    }
+
+
     .quantity-input.invalid {
 
       border-color:
@@ -1375,6 +1388,7 @@
             inputmode="decimal"
             autocomplete="off"
             placeholder="Enter quantity"
+            disabled
           >
 
 
@@ -1585,6 +1599,8 @@
 
       setupTypeCheckboxes();
 
+      updateInputFieldsState();
+
       setupQuantityInput();
 
       setupSaveButton();
@@ -1640,6 +1656,8 @@
 
               }
 
+
+              updateInputFieldsState();
 
               hideError();
 
@@ -2838,12 +2856,7 @@
       );
 
 
-      itemNameSelect.disabled =
-        itemNames.length === 0;
-
-
-      partNumberSelect.disabled =
-        true;
+      updateInputFieldsState();
 
 
       itemNameSelect.onchange =
@@ -2852,6 +2865,79 @@
 
       partNumberSelect.onchange =
         handlePartNumberChange;
+
+    }
+
+
+    /*
+     * =========================================================
+     * INPUT FIELDS STATE
+     *
+     * Item Name, Part Number and Quantity stay disabled until
+     * a Submittal Type is selected.
+     * =========================================================
+     */
+
+    function updateInputFieldsState() {
+
+      const itemNameSelect =
+        document.getElementById(
+          'itemName'
+        );
+
+
+      const partNumberSelect =
+        document.getElementById(
+          'partNumber'
+        );
+
+
+      const quantityInput =
+        document.getElementById(
+          'quantity'
+        );
+
+
+      const hasType =
+        !!getSelectedType();
+
+
+      const hasItemName =
+        !!itemNameSelect.value;
+
+
+      const itemNamesAvailable =
+        (databaseData.itemNames || []).length > 0;
+
+
+      /*
+       * Item Name becomes available as soon as a Submittal
+       * Type is selected, provided the database has loaded.
+       */
+      itemNameSelect.disabled =
+        !hasType ||
+        !itemNamesAvailable;
+
+
+      /*
+       * Part Number is available after the Submittal Type is
+       * selected. Its actual options remain dependent on the
+       * selected Item Name.
+       */
+      partNumberSelect.disabled =
+        !hasType ||
+        (hasItemName &&
+          !((databaseData.dependentPartNumbers || {})[
+            itemNameSelect.value
+          ] || []).length);
+
+
+      /*
+       * Quantity becomes available as soon as a Submittal
+       * Type is selected.
+       */
+      quantityInput.disabled =
+        !hasType;
 
     }
 
@@ -2908,8 +2994,7 @@
         !selectedItemName
       ) {
 
-        partNumberSelect.disabled =
-          true;
+        updateInputFieldsState();
 
         return;
 
@@ -2948,8 +3033,7 @@
       );
 
 
-      partNumberSelect.disabled =
-        partNumbers.length === 0;
+      updateInputFieldsState();
 
     }
 
@@ -3210,10 +3294,6 @@
       );
 
 
-      partNumberSelect.disabled =
-        true;
-
-
       /*
        * Reset BOQ.
        */
@@ -3229,6 +3309,9 @@
         'quantity'
       ).value =
         '';
+
+
+      updateInputFieldsState();
 
     }
 
