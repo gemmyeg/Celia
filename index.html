@@ -232,6 +232,17 @@
 
     /* ===================== Search Result Modal (Pop-up) ===================== */
     .search-modal-box { max-width: 640px; }
+    .search-table-wrap { max-height: none; overflow-y: visible; }
+    .modal-error {
+      margin: 0 0 16px;
+      padding: 11px 14px;
+      border-radius: 9px;
+      background: #fef2f2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+      font-size: 13px;
+      line-height: 1.5;
+    }
     .search-modal-timestamp { margin: -4px 0 20px; font-size: 13px; color: #94a3b8; }
     .search-empty-state { padding: 22px 10px; text-align: center; color: #94a3b8; font-size: 14px; }
     .row-actions-cell { text-align: right; white-space: nowrap; }
@@ -417,7 +428,8 @@
       <button type="button" id="searchModalCloseButton" class="modal-close" aria-label="Close">&times;</button>
       <h3 id="searchModalTitle" class="modal-title">Search results for</h3>
       <p id="searchModalTimestamp" class="search-modal-timestamp"></p>
-      <div class="modal-table-wrap">
+      <div id="searchModalError" class="modal-error" hidden></div>
+      <div class="modal-table-wrap search-table-wrap">
         <table class="modal-details-table">
           <thead>
             <tr><th>Item</th><th>Part Number</th><th>Qty</th><th></th></tr>
@@ -433,7 +445,7 @@
   </div>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwImmpgSw7Za4Z_8mUyQnGFI7EB38XFZhTOt-eeYOfKr19Zz-YIJNod3yeg2iWW-O245A/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxzzMbaGO6WFwUjVauAIWEiS_Z02HAezFNHHef3XV_PK8I39FY2Q4G9tlCF8xzMY0Yq1g/exec';
 
     let databaseData = { itemNames: [], dependentPartNumbers: {} };
     let selectedItemNames = new Set();
@@ -979,6 +991,7 @@
     function showSearchResultModal() {
       document.getElementById('searchModalTitle').textContent = 'Search results for ' + (searchState.submittalCode || '');
       document.getElementById('searchModalTimestamp').textContent = searchState.timestamp ? formatFullTimestamp(searchState.timestamp) : '';
+      hideSearchModalError();
 
       const editAllButton = document.getElementById('editAllButton');
       editAllButton.textContent = 'Edit All';
@@ -996,6 +1009,19 @@
       overlay.classList.remove('open');
       setTimeout(function() { overlay.hidden = true; }, 180);
       searchState = null;
+      hideSearchModalError();
+    }
+
+    function showSearchModalError(message) {
+      const el = document.getElementById('searchModalError');
+      el.textContent = message;
+      el.hidden = false;
+    }
+
+    function hideSearchModalError() {
+      const el = document.getElementById('searchModalError');
+      el.textContent = '';
+      el.hidden = true;
     }
 
     function renderSearchResultsTable() {
@@ -1080,17 +1106,18 @@
 
       if (!row.editing) {
         row.editing = true;
+        hideSearchModalError();
         renderSearchResultsTable();
         return;
       }
 
       const quantity = String(row.quantity).trim();
       if (!quantity || !/^\d+(\.\d+)?$/.test(quantity)) {
-        showError('Please enter a valid Quantity for Item: ' + row.itemName + '.');
+        showSearchModalError('Please enter a valid Quantity for Item: ' + row.itemName + '.');
         return;
       }
 
-      hideError();
+      hideSearchModalError();
       const callbackName = 'handleUpdateQtyResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
@@ -1099,7 +1126,7 @@
           row.editing = false;
           renderSearchResultsTable();
         } catch (error) {
-          showError(error && error.message ? error.message : 'Unable to update the quantity.');
+          showSearchModalError(error && error.message ? error.message : 'Unable to update the quantity.');
         } finally {
           cleanupJsonp(script, callbackName);
         }
@@ -1111,7 +1138,7 @@
         '&partNumber=' + encodeURIComponent(row.partNumber) +
         '&quantity=' + encodeURIComponent(quantity);
       script.onerror = function() {
-        showError('Unable to connect to the Google Apps Script API.');
+        showSearchModalError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
       };
       document.body.appendChild(script);
@@ -1123,7 +1150,7 @@
       if (!row) return;
       if (!confirm('Delete this row (' + row.itemName + ' / ' + row.partNumber + ')? This cannot be undone.')) return;
 
-      hideError();
+      hideSearchModalError();
       const callbackName = 'handleDeleteRowResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
@@ -1131,7 +1158,7 @@
           searchState.rows.splice(index, 1);
           renderSearchResultsTable();
         } catch (error) {
-          showError(error && error.message ? error.message : 'Unable to delete this row.');
+          showSearchModalError(error && error.message ? error.message : 'Unable to delete this row.');
         } finally {
           cleanupJsonp(script, callbackName);
         }
@@ -1142,7 +1169,7 @@
         '&itemName=' + encodeURIComponent(row.itemName) +
         '&partNumber=' + encodeURIComponent(row.partNumber);
       script.onerror = function() {
-        showError('Unable to connect to the Google Apps Script API.');
+        showSearchModalError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
       };
       document.body.appendChild(script);
@@ -1157,6 +1184,7 @@
         searchState.rows.forEach(function(row) { row.editing = false; });
         button.textContent = 'Save All';
         button.classList.add('active');
+        hideSearchModalError();
         renderSearchResultsTable();
         return;
       }
@@ -1166,13 +1194,13 @@
         const row = searchState.rows[i];
         const quantity = String(row.quantity).trim();
         if (!quantity || !/^\d+(\.\d+)?$/.test(quantity)) {
-          showError('Please enter a valid Quantity for Item: ' + row.itemName + '.');
+          showSearchModalError('Please enter a valid Quantity for Item: ' + row.itemName + '.');
           return;
         }
         rowsPayload.push({ itemName: row.itemName, partNumber: row.partNumber, quantity: quantity });
       }
 
-      hideError();
+      hideSearchModalError();
       button.disabled = true;
       button.textContent = 'Saving...';
 
@@ -1186,7 +1214,7 @@
           renderSearchResultsTable();
         } catch (error) {
           button.textContent = 'Save All';
-          showError(error && error.message ? error.message : 'Unable to update the quantities.');
+          showSearchModalError(error && error.message ? error.message : 'Unable to update the quantities.');
         } finally {
           button.disabled = false;
           cleanupJsonp(script, callbackName);
@@ -1199,7 +1227,7 @@
       script.onerror = function() {
         button.disabled = false;
         button.textContent = 'Save All';
-        showError('Unable to connect to the Google Apps Script API.');
+        showSearchModalError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
       };
       document.body.appendChild(script);
@@ -1210,7 +1238,7 @@
       const code = searchState.submittalCode;
       if (!confirm('Delete ALL ' + searchState.rows.length + ' row(s) shown for Submittal Code "' + code + '"? This cannot be undone.')) return;
 
-      hideError();
+      hideSearchModalError();
       const button = document.getElementById('deleteAllButton');
       button.disabled = true;
       button.textContent = 'Deleting...';
@@ -1222,7 +1250,7 @@
           searchState.rows = [];
           renderSearchResultsTable();
         } catch (error) {
-          showError(error && error.message ? error.message : 'Unable to delete these rows.');
+          showSearchModalError(error && error.message ? error.message : 'Unable to delete these rows.');
         } finally {
           button.disabled = false;
           button.textContent = 'Delete All';
@@ -1234,7 +1262,7 @@
       script.onerror = function() {
         button.disabled = false;
         button.textContent = 'Delete All';
-        showError('Unable to connect to the Google Apps Script API.');
+        showSearchModalError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
       };
       document.body.appendChild(script);
