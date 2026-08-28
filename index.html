@@ -211,6 +211,7 @@
     }
     .modal-details-table td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
     .modal-details-table tr:last-child td { border-bottom: none; }
+    .modal-details-table td.muted { color: #94a3b8; }
     .modal-ok-button {
       width: 100%;
       height: 48px;
@@ -432,7 +433,7 @@
       <div class="modal-table-wrap search-table-wrap">
         <table class="modal-details-table">
           <thead>
-            <tr><th>Item</th><th>Part Number</th><th>Qty</th><th></th></tr>
+            <tr><th>Item</th><th>Part Number</th><th>BOQ</th><th>Qty</th><th></th></tr>
           </thead>
           <tbody id="searchResultsBody"></tbody>
         </table>
@@ -1034,7 +1035,7 @@
       if (!searchState || !searchState.rows.length) {
         const tr = document.createElement('tr');
         const td = document.createElement('td');
-        td.colSpan = 4;
+        td.colSpan = 5;
         td.className = 'search-empty-state';
         td.textContent = 'No rows remaining for this Submittal Code.';
         tr.appendChild(td);
@@ -1055,6 +1056,14 @@
 
         const partTd = document.createElement('td');
         partTd.textContent = row.partNumber || '';
+
+        const boqTd = document.createElement('td');
+        if (row.boq !== undefined && row.boq !== null && String(row.boq).trim() !== '') {
+          boqTd.textContent = String(row.boq);
+        } else {
+          boqTd.textContent = '—';
+          boqTd.className = 'muted';
+        }
 
         const qtyTd = document.createElement('td');
         const editing = row.editing || searchState.editAll;
@@ -1093,6 +1102,7 @@
 
         tr.appendChild(itemTd);
         tr.appendChild(partTd);
+        tr.appendChild(boqTd);
         tr.appendChild(qtyTd);
         tr.appendChild(actionsTd);
         body.appendChild(tr);
