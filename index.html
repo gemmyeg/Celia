@@ -141,7 +141,7 @@
     .modal-overlay.open { opacity: 1; pointer-events: auto; }
     .modal-box {
       width: 100%;
-      max-width: 420px;
+      max-width: 520px;
       background: #fff;
       border-radius: 16px;
       padding: 30px;
@@ -149,6 +149,8 @@
       position: relative;
       transform: translateY(10px) scale(.97);
       transition: transform .18s ease;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
     }
     .modal-overlay.open .modal-box { transform: translateY(0) scale(1); }
     .modal-close {
@@ -181,10 +183,31 @@
     }
     .modal-title { margin: 0 0 6px; font-size: 20px; font-weight: 700; color: #111827; }
     .modal-subtitle { margin: 0 0 22px; font-size: 14px; color: #64748b; line-height: 1.5; }
-    .modal-result-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 11px 0; }
+    .modal-result-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 9px 0; }
     .modal-result-row + .modal-result-row { border-top: 1px solid #eef2f7; }
     .modal-result-label { font-weight: 700; color: #334155; font-size: 14px; }
     .modal-result-value { text-align: right; color: #0f172a; font-size: 14px; word-break: break-word; }
+    .modal-table-wrap {
+      margin-top: 16px;
+      max-height: 240px;
+      overflow-y: auto;
+      overflow-x: auto;
+      border: 1px solid #eef2f7;
+      border-radius: 10px;
+    }
+    .modal-details-table { width: 100%; min-width: 380px; border-collapse: collapse; font-size: 13px; }
+    .modal-details-table th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      text-align: left;
+      padding: 9px 12px;
+      font-weight: 700;
+      color: #475569;
+      border-bottom: 1px solid #eef2f7;
+    }
+    .modal-details-table td { padding: 9px 12px; border-bottom: 1px solid #f1f5f9; color: #334155; }
+    .modal-details-table tr:last-child td { border-bottom: none; }
     .modal-ok-button {
       width: 100%;
       height: 48px;
@@ -315,7 +338,16 @@
       <h3 id="modalTitle" class="modal-title">Submittal Saved</h3>
       <p id="modalSubtitle" class="modal-subtitle">Your submittal was saved successfully.</p>
       <div class="modal-result-row"><span class="modal-result-label">Type</span><span id="modalSelectedType" class="modal-result-value"></span></div>
-      <div class="modal-result-row"><span class="modal-result-label">Rows Saved</span><span id="modalSelectedCount" class="modal-result-value"></span></div>
+      <div class="modal-result-row"><span class="modal-result-label">Submittal Code</span><span id="modalSubmittalCode" class="modal-result-value"></span></div>
+      <div class="modal-result-row"><span class="modal-result-label">Time</span><span id="modalTimestamp" class="modal-result-value"></span></div>
+      <div class="modal-table-wrap">
+        <table class="modal-details-table">
+          <thead>
+            <tr><th>Item</th><th>Part Number</th><th>Qty</th></tr>
+          </thead>
+          <tbody id="modalDetailsBody"></tbody>
+        </table>
+      </div>
       <button type="button" id="modalOkButton" class="modal-ok-button">OK</button>
     </div>
   </div>
@@ -710,9 +742,11 @@
       window[callbackName] = function(response) {
         try {
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to save the submittals.');
-          const submittalCode = (response.data && response.data.length && response.data[0].submittalCode) || '';
-          showResultModal(type, rows.length, response.message || (rows.length + ' submittal row(s) saved successfully.'));
-          logLastAction(type, rows.length, submittalCode);
+          const responseData = response.data || [];
+          const submittalCode = (responseData.length && responseData[0].submittalCode) || '';
+          const savedAt = (responseData.length && responseData[0].timestamp) ? new Date(responseData[0].timestamp) : new Date();
+          showResultModal(type, submittalCode, savedAt, responseData);
+          logLastAction(type, rows.length, submittalCode, savedAt);
           resetFormAfterSave();
         } catch (error) {
           showError(error && error.message ? error.message : 'Unable to save the submittals.');
@@ -751,8 +785,8 @@
       document.getElementById('undoButton').addEventListener('click', handleUndo);
     }
 
-    function logLastAction(type, rowsSaved, submittalCode) {
-      lastAction = { type: type, rowsSaved: rowsSaved, submittalCode: submittalCode, undone: false };
+    function logLastAction(type, rowsSaved, submittalCode, savedAt) {
+      lastAction = { type: type, rowsSaved: rowsSaved, submittalCode: submittalCode, savedAt: savedAt || new Date(), undoneAt: null, undone: false };
       renderLastActionLog();
     }
 
@@ -766,10 +800,10 @@
       log.hidden = false;
 
       if (lastAction.undone) {
-        text.innerHTML = 'Last action undone: <strong>' + lastAction.rowsSaved + '</strong> row(s) (' + escapeHtml(lastAction.type) + (lastAction.submittalCode ? ', ' + escapeHtml(lastAction.submittalCode) : '') + ') were removed.';
+        text.innerHTML = 'Last action undone (' + escapeHtml(formatTimestamp(lastAction.undoneAt)) + '): <strong>' + lastAction.rowsSaved + '</strong> row(s) (' + escapeHtml(lastAction.type) + (lastAction.submittalCode ? ', ' + escapeHtml(lastAction.submittalCode) : '') + ') were removed.';
         undoButton.hidden = true;
       } else {
-        text.innerHTML = 'Last action: saved <strong>' + lastAction.rowsSaved + '</strong> row(s) as <strong>' + escapeHtml(lastAction.submittalCode || '—') + '</strong> (' + escapeHtml(lastAction.type) + ').';
+        text.innerHTML = 'Last action (' + escapeHtml(formatTimestamp(lastAction.savedAt)) + '): saved <strong>' + lastAction.rowsSaved + '</strong> row(s) as <strong>' + escapeHtml(lastAction.submittalCode || '—') + '</strong> (' + escapeHtml(lastAction.type) + ').';
         undoButton.hidden = false;
         undoButton.disabled = false;
         undoButton.classList.remove('done');
@@ -796,6 +830,7 @@
         try {
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to undo the last action.');
           lastAction.undone = true;
+          lastAction.undoneAt = new Date();
           renderLastActionLog();
         } catch (error) {
           undoButton.disabled = false;
@@ -821,6 +856,11 @@
         return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
       });
     }
+
+    function formatTimestamp(date) {
+      if (!(date instanceof Date) || isNaN(date.getTime())) return '';
+      return date.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
     /* ===================================================================== */
 
     /* ===================== Result Modal (Pop-up) ===================== */
@@ -836,10 +876,34 @@
       });
     }
 
-    function showResultModal(type, rowsSaved, subtitle) {
-      document.getElementById('modalSubtitle').textContent = subtitle;
+    function showResultModal(type, submittalCode, savedAt, rowsDetails) {
+      const details = rowsDetails || [];
+
+      document.getElementById('modalSubtitle').textContent = details.length + ' submittal row(s) saved successfully.';
       document.getElementById('modalSelectedType').textContent = type;
-      document.getElementById('modalSelectedCount').textContent = String(rowsSaved);
+      document.getElementById('modalSubmittalCode').textContent = submittalCode || '—';
+      document.getElementById('modalTimestamp').textContent = formatTimestamp(savedAt);
+
+      const body = document.getElementById('modalDetailsBody');
+      body.innerHTML = '';
+      details.forEach(function(row) {
+        const tr = document.createElement('tr');
+
+        const itemTd = document.createElement('td');
+        itemTd.textContent = row.itemName || '';
+
+        const partTd = document.createElement('td');
+        partTd.textContent = row.partNumber || '';
+
+        const qtyTd = document.createElement('td');
+        qtyTd.textContent = (row.quantity !== undefined && row.quantity !== null && row.quantity !== '') ? formatNumber(row.quantity) : '';
+
+        tr.appendChild(itemTd);
+        tr.appendChild(partTd);
+        tr.appendChild(qtyTd);
+        body.appendChild(tr);
+      });
+
       const overlay = document.getElementById('resultModalOverlay');
       overlay.hidden = false;
       requestAnimationFrame(function() { overlay.classList.add('open'); });
