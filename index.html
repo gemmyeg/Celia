@@ -36,6 +36,12 @@
     .session-check-state { color: oklch(0.5 0.012 50); font-size: 14px; font-weight: 600; padding: 60px 20px; text-align: center; }
     .type-section { margin-bottom: 30px; }
     .section-label { display: block; margin-bottom: 12px; font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: oklch(0.4 0.015 50); }
+    .zone-section { display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 26px; }
+    .zone-field { flex: 1; min-width: 220px; margin-bottom: 0; }
+    .zone-select { width: 100%; height: 56px; padding: 0 44px 0 20px; border: none; border-radius: 18px; background-color: oklch(0.95 0.012 55); background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23824134' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat: no-repeat; background-position: right 20px center; background-size: 11px 8px; appearance: none; -webkit-appearance: none; box-shadow: inset 5px 5px 12px oklch(0.72 0.02 50 / .38), inset -5px -5px 12px oklch(1 0 0 / .85); color: oklch(0.3 0.02 40); font-size: 15px; font-weight: 600; font-family: inherit; outline: none; cursor: pointer; transition: box-shadow .2s ease; }
+    .zone-select:hover:not(:disabled) { box-shadow: inset 6px 6px 14px oklch(0.72 0.02 50 / .45), inset -6px -6px 14px oklch(1 0 0 / .95); }
+    .zone-select:focus { box-shadow: inset 5px 5px 12px oklch(0.42 0.13 18 / .24), inset -5px -5px 12px oklch(1 0 0 / .85); }
+    .zone-select:disabled { color: oklch(0.62 0.01 50); cursor: not-allowed; }
     #typeSelect { display: none; }
     .loading { margin-bottom: 30px; padding: 20px 22px; border-radius: 20px; background: oklch(0.95 0.012 55); box-shadow: 8px 8px 18px oklch(0.72 0.02 50 / .35), -8px -8px 18px oklch(1 0 0 / .85); }
     .loading-header { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 12px; }
@@ -311,6 +317,7 @@
       line-height: 1.5;
       font-weight: 600;
     }
+    .search-modal-requestedby { margin: -4px 0 6px; font-size: 13px; font-weight: 700; color: oklch(0.42 0.13 18); }
     .search-modal-timestamp { margin: -4px 0 20px; font-size: 13px; color: oklch(0.6 0.012 50); }
     .search-empty-state { padding: 24px 10px; text-align: center; color: oklch(0.6 0.012 50); font-size: 14px; }
     .row-actions-cell { text-align: right; white-space: nowrap; }
@@ -427,6 +434,21 @@
         </div>
       </div>
 
+      <div id="zoneSection" class="zone-section" hidden>
+        <div class="field zone-field">
+          <label for="projectNameSelect">Project Name</label>
+          <select id="projectNameSelect" class="zone-select">
+            <option value="">Select Project Name</option>
+          </select>
+        </div>
+        <div class="field zone-field">
+          <label for="zoneSelect">Zone</label>
+          <select id="zoneSelect" class="zone-select" disabled>
+            <option value="">Select Zone</option>
+          </select>
+        </div>
+      </div>
+
       <div id="successMessage" class="message success" hidden></div>
 
       <div class="field">
@@ -519,6 +541,7 @@
     <div class="modal-box search-modal-box" role="dialog" aria-modal="true" aria-labelledby="searchModalTitle">
       <button type="button" id="searchModalCloseButton" class="modal-close" aria-label="Close">&times;</button>
       <h3 id="searchModalTitle" class="modal-title">Search results for</h3>
+      <p id="searchModalRequestedBy" class="search-modal-requestedby" hidden></p>
       <p id="searchModalTimestamp" class="search-modal-timestamp"></p>
       <div id="searchModalError" class="modal-error" hidden></div>
       <div class="modal-table-wrap search-table-wrap">
@@ -586,6 +609,7 @@
 
     function initializeApp() {
       setupTypeSelect();
+      setupZoneSelects();
       setupItemMultiSelect();
       setupSaveButton();
       setupResultModal();
@@ -665,6 +689,7 @@
       const select = document.getElementById('typeSelect');
       select.addEventListener('change', function() {
         enableItemSelector(!!select.value);
+        updateZoneSectionVisibility();
         hideError();
         hideSuccess();
       });
@@ -782,6 +807,102 @@
       syncTypeDisplay();
       renderTypeOptions();
     }
+
+    /*
+     * ===================== Zone-dependent dropdowns =====================
+     * Some Submittal Types (per the "Zone Required" column in the
+     * "Submittals Name" sheet) require picking a Project Name and, once
+     * that is chosen, a dependent Zone — same dependency pattern as
+     * Item Name -> Part Number.
+     */
+    function isZoneRequiredForType(type) {
+      if (!type) return false;
+      const map = databaseData.zoneRequiredByType || {};
+      return !!map[type.trim().toLowerCase()];
+    }
+
+    function getSelectedProjectName() {
+      const select = document.getElementById('projectNameSelect');
+      return select ? select.value : '';
+    }
+
+    function getSelectedZone() {
+      const select = document.getElementById('zoneSelect');
+      return select ? select.value : '';
+    }
+
+    function populateProjectNameSelect() {
+      const select = document.getElementById('projectNameSelect');
+      const projectNames = databaseData.projectNames || [];
+      const previousValue = select.value;
+
+      select.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select Project Name';
+      select.appendChild(placeholder);
+
+      projectNames.forEach(function(projectName) {
+        const option = document.createElement('option');
+        option.value = projectName;
+        option.textContent = projectName;
+        select.appendChild(option);
+      });
+
+      select.value = projectNames.includes(previousValue) ? previousValue : '';
+    }
+
+    function populateZoneSelect() {
+      const projectName = getSelectedProjectName();
+      const zoneSelect = document.getElementById('zoneSelect');
+      const zones = (databaseData.dependentZones || {})[projectName] || [];
+
+      zoneSelect.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select Zone';
+      zoneSelect.appendChild(placeholder);
+
+      zones.forEach(function(zone) {
+        const option = document.createElement('option');
+        option.value = zone;
+        option.textContent = zone;
+        zoneSelect.appendChild(option);
+      });
+
+      zoneSelect.disabled = !projectName || zones.length === 0;
+      zoneSelect.value = '';
+    }
+
+    function resetZoneSelections() {
+      document.getElementById('projectNameSelect').value = '';
+      populateZoneSelect();
+    }
+
+    function updateZoneSectionVisibility() {
+      const required = isZoneRequiredForType(getSelectedType());
+      const section = document.getElementById('zoneSection');
+      section.hidden = !required;
+      if (!required) resetZoneSelections();
+      updateSaveButtonState();
+    }
+
+    function setupZoneSelects() {
+      document.getElementById('projectNameSelect').addEventListener('change', function() {
+        populateZoneSelect();
+        hideError();
+        hideSuccess();
+        updateSaveButtonState();
+      });
+      document.getElementById('zoneSelect').addEventListener('change', function() {
+        hideError();
+        hideSuccess();
+        updateSaveButtonState();
+      });
+    }
+    /* =========================================================================== */
 
     function setupItemMultiSelect() {
       const trigger = document.getElementById('itemNameTrigger');
@@ -1165,6 +1286,13 @@
       hideSuccess();
       const type = getSelectedType();
       if (!type) { showError('Please select one Submittal Type.'); return; }
+
+      const zoneRequired = isZoneRequiredForType(type);
+      const projectName = zoneRequired ? getSelectedProjectName() : '';
+      const zone = zoneRequired ? getSelectedZone() : '';
+      if (zoneRequired && !projectName) { showError('Please select a Project Name for this Submittal Type.'); return; }
+      if (zoneRequired && !zone) { showError('Please select a Zone for this Submittal Type.'); return; }
+
       const selected = Array.from(selectedItemNames);
       if (!selected.length) { showError('Please select at least one Item Name.'); return; }
 
@@ -1200,10 +1328,10 @@
         if (!proceed) return;
       }
 
-      saveSubmittals(type, readyRows);
+      saveSubmittals(type, readyRows, projectName, zone);
     }
 
-    function saveSubmittals(type, rows) {
+    function saveSubmittals(type, rows, projectName, zone) {
       const button = document.getElementById('saveButton');
       button.disabled = true;
       button.textContent = 'Saving...';
@@ -1226,7 +1354,7 @@
         }
       };
       const script = document.createElement('script');
-      script.src = API_URL + '?action=saveSubmittals&prefix=' + encodeURIComponent(callbackName) + '&type=' + encodeURIComponent(type) + '&rows=' + encodeURIComponent(JSON.stringify(rows)) + '&token=' + encodeURIComponent(currentSessionToken);
+      script.src = API_URL + '?action=saveSubmittals&prefix=' + encodeURIComponent(callbackName) + '&type=' + encodeURIComponent(type) + '&projectName=' + encodeURIComponent(projectName || '') + '&zone=' + encodeURIComponent(zone || '') + '&rows=' + encodeURIComponent(JSON.stringify(rows)) + '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         showError('Unable to connect to the Google Apps Script API.');
         button.disabled = false;
@@ -1246,6 +1374,7 @@
       if (select) select.value = '';
       closeTypePanel();
       syncTypeDisplay();
+      updateZoneSectionVisibility();
       selectedItemNames.clear();
       rowState = {};
       enableItemSelector(false);
@@ -1362,6 +1491,7 @@
             submittalCode: response.submittalCode || code,
             type: response.type || '',
             timestamp: parseSheetTimestamp(response.timestamp),
+            requestedBy: response.requestedBy || '',
             rows: rows,
             editAll: false
           };
@@ -1402,6 +1532,14 @@
 
     function showSearchResultModal() {
       document.getElementById('searchModalTitle').textContent = 'Search results for ' + (searchState.submittalCode || '');
+      const requestedByEl = document.getElementById('searchModalRequestedBy');
+      if (searchState.requestedBy) {
+        requestedByEl.textContent = 'Requested by: ' + searchState.requestedBy;
+        requestedByEl.hidden = false;
+      } else {
+        requestedByEl.textContent = '';
+        requestedByEl.hidden = true;
+      }
       document.getElementById('searchModalTimestamp').textContent = searchState.timestamp ? formatFullTimestamp(searchState.timestamp) : '';
       hideSearchModalError();
 
@@ -1843,6 +1981,8 @@
 
     function populateItemData() {
       populateTypeSelect();
+      populateProjectNameSelect();
+      updateZoneSectionVisibility();
       document.getElementById('itemNameDisplay').textContent = 'Select Item Name';
       document.getElementById('selectionCount').textContent = '0 items selected';
       renderItemOptions();
@@ -1851,9 +1991,13 @@
 
     function updateSaveButtonState() {
       const button = document.getElementById('saveButton');
-      const type = !!getSelectedType();
+      const type = getSelectedType();
       const hasItems = selectedItemNames.size > 0;
-      button.disabled = !(type && hasItems);
+      let zoneReady = true;
+      if (isZoneRequiredForType(type)) {
+        zoneReady = !!getSelectedProjectName() && !!getSelectedZone();
+      }
+      button.disabled = !(type && hasItems && zoneReady);
     }
 
     function startProgress() {
