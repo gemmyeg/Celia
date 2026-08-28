@@ -101,12 +101,13 @@
     .empty-part-state { padding: 20px; border-radius: 16px; color: oklch(0.55 0.012 50); font-size: 14px; text-align: center; background: oklch(0.95 0.012 55); box-shadow: inset 4px 4px 10px oklch(0.72 0.02 50 / .3), inset -4px -4px 10px oklch(1 0 0 / .7); }
     .table-section { margin-top: 10px; margin-bottom: 30px; }
     .table-wrap { overflow-x: auto; border-radius: 20px; background: oklch(0.95 0.012 55); box-shadow: 8px 8px 18px oklch(0.72 0.02 50 / .38), -8px -8px 18px oklch(1 0 0 / .85); }
-    .quantity-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    .quantity-table { width: 100%; border-collapse: collapse; min-width: 960px; }
     .quantity-table th { padding: 15px 18px; text-align: left; color: oklch(0.42 0.13 18); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
     .quantity-table td { padding: 14px 18px; vertical-align: middle; font-size: 14px; color: oklch(0.32 0.015 45); border-top: 1px solid oklch(0.88 0.015 50); }
     .quantity-table tr:first-child td { border-top: none; }
     .quantity-table .item-cell { font-weight: 700; color: oklch(0.24 0.02 40); }
     .quantity-table .muted { color: oklch(0.55 0.012 50); }
+    .quantity-table .negative-available { color: oklch(0.5 0.19 25); font-weight: 700; }
     .quantity-input { width: 150px; height: 44px; padding: 0 14px; border: none; border-radius: 13px; background: oklch(0.95 0.012 55); box-shadow: inset 3px 3px 8px oklch(0.72 0.02 50 / .35), inset -3px -3px 8px oklch(1 0 0 / .85); color: oklch(0.26 0.02 40); font-size: 14px; font-weight: 700; outline: none; transition: box-shadow .2s ease; }
     .quantity-input:focus { box-shadow: inset 3px 3px 8px oklch(0.42 0.13 18 / .28), inset -3px -3px 8px oklch(1 0 0 / .85); }
     .quantity-input:disabled { color: oklch(0.62 0.01 50); cursor: not-allowed; }
@@ -427,10 +428,10 @@
         <div class="table-wrap">
           <table class="quantity-table">
             <thead>
-              <tr><th>Item</th><th>Part Number</th><th>BOQ</th><th>Quantity</th></tr>
+              <tr><th>Item</th><th>Part Number</th><th>BOQ</th><th>Previous Requests</th><th>Available</th><th>Quantity</th></tr>
             </thead>
             <tbody id="quantityTableBody">
-              <tr><td colspan="4" class="muted" style="text-align:center;">Select Item Names and Part Numbers to build the table.</td></tr>
+              <tr><td colspan="6" class="muted" style="text-align:center;">Select Item Names and Part Numbers to build the table.</td></tr>
             </tbody>
           </table>
         </div>
@@ -693,7 +694,7 @@
       }
 
       selected.forEach(function(itemName) {
-        if (!rowState[itemName]) rowState[itemName] = { partNumber: '', boq: null, quantity: '', loading: false, requestId: 0 };
+        if (!rowState[itemName]) rowState[itemName] = { partNumber: '', boq: null, previousRequests: null, available: null, quantity: '', loading: false, requestId: 0 };
         const state = rowState[itemName];
         const row = document.createElement('div');
         row.className = 'part-selection-row';
@@ -726,9 +727,11 @@
     }
 
     function handlePartNumberChange(itemName, partNumber) {
-      const state = rowState[itemName] || { partNumber: '', boq: null, quantity: '', loading: false, requestId: 0 };
+      const state = rowState[itemName] || { partNumber: '', boq: null, previousRequests: null, available: null, quantity: '', loading: false, requestId: 0 };
       state.partNumber = partNumber;
       state.boq = null;
+      state.previousRequests = null;
+      state.available = null;
       state.quantity = '';
       state.loading = false;
       state.requestId = ++detailsRequestSequence;
@@ -748,12 +751,16 @@
           if (!state || state.requestId !== requestId || !selectedItemNames.has(itemName) || state.partNumber !== partNumber) return;
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to load Part Number details.');
           state.boq = response.data.boq;
+          state.previousRequests = response.data.previousRequests;
+          state.available = response.data.available;
           updateQuantityTable();
           updateSaveButtonState();
         } catch (error) {
           const state = rowState[itemName];
           if (state && state.requestId === requestId) {
             state.boq = null;
+            state.previousRequests = null;
+            state.available = null;
             updateQuantityTable();
             showError(error && error.message ? error.message : 'Unable to load Part Number details.');
           }
@@ -762,7 +769,7 @@
         }
       };
       const script = document.createElement('script');
-      script.src = API_URL + '?action=getPartDetails&prefix=' + encodeURIComponent(callbackName) + '&itemName=' + encodeURIComponent(itemName) + '&partNumber=' + encodeURIComponent(partNumber);
+      script.src = API_URL + '?action=getPartDetails&prefix=' + encodeURIComponent(callbackName) + '&itemName=' + encodeURIComponent(itemName) + '&partNumber=' + encodeURIComponent(partNumber) + '&type=' + encodeURIComponent(getSelectedType());
       script.onerror = function() {
         showError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
@@ -775,12 +782,12 @@
       const selected = Array.from(selectedItemNames);
       body.innerHTML = '';
       if (!selected.length) {
-        body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center;">Select Item Names and Part Numbers to build the table.</td></tr>';
+        body.innerHTML = '<tr><td colspan="6" class="muted" style="text-align:center;">Select Item Names and Part Numbers to build the table.</td></tr>';
         return;
       }
 
       selected.forEach(function(itemName) {
-        const state = rowState[itemName] || { partNumber: '', boq: null, quantity: '', loading: false };
+        const state = rowState[itemName] || { partNumber: '', boq: null, previousRequests: null, available: null, quantity: '', loading: false };
         const tr = document.createElement('tr');
 
         const itemTd = document.createElement('td');
@@ -796,6 +803,19 @@
         else if (state.partNumber) { boqTd.textContent = 'Loading...'; boqTd.className = 'muted'; }
         else { boqTd.textContent = '—'; boqTd.className = 'muted'; }
 
+        const prevTd = document.createElement('td');
+        if (state.previousRequests !== null && state.previousRequests !== undefined && String(state.previousRequests).trim() !== '') prevTd.textContent = formatNumber(Number(String(state.previousRequests).replace(/,/g, '')));
+        else if (state.partNumber) { prevTd.textContent = 'Loading...'; prevTd.className = 'muted'; }
+        else { prevTd.textContent = '—'; prevTd.className = 'muted'; }
+
+        const availTd = document.createElement('td');
+        if (isValidAvailable(state.available)) {
+          const availableNum = Number(String(state.available).replace(/,/g, ''));
+          availTd.textContent = formatNumber(availableNum);
+          if (availableNum <= 0) availTd.className = 'negative-available';
+        } else if (state.partNumber) { availTd.textContent = 'Loading...'; availTd.className = 'muted'; }
+        else { availTd.textContent = '—'; availTd.className = 'muted'; }
+
         const qtyTd = document.createElement('td');
         const qtyInput = document.createElement('input');
         qtyInput.type = 'text';
@@ -804,7 +824,7 @@
         qtyInput.autocomplete = 'off';
         qtyInput.placeholder = 'Enter quantity';
         qtyInput.value = state.quantity || '';
-        qtyInput.disabled = !(state.partNumber && state.boq !== null && isValidBoq(state.boq));
+        qtyInput.disabled = !(state.partNumber && isValidAvailable(state.available) && Number(String(state.available).replace(/,/g, '')) > 0);
         qtyInput.addEventListener('input', function() {
           sanitizeQuantityInput(qtyInput);
           state.quantity = qtyInput.value;
@@ -812,16 +832,19 @@
           updateSaveButtonState();
         });
         qtyTd.appendChild(qtyInput);
-        if (state.boq !== null && state.boq !== undefined && isValidBoq(state.boq)) {
+        if (isValidAvailable(state.available)) {
+          const availableNum = Number(String(state.available).replace(/,/g, ''));
           const hint = document.createElement('span');
           hint.className = 'quantity-hint';
-          hint.textContent = 'Maximum: ' + formatNumber(Number(String(state.boq).replace(/,/g, '')));
+          hint.textContent = availableNum > 0 ? ('Maximum: ' + formatNumber(availableNum)) : 'No quantity available for this Part Number.';
           qtyTd.appendChild(hint);
         }
 
         tr.appendChild(itemTd);
         tr.appendChild(partTd);
         tr.appendChild(boqTd);
+        tr.appendChild(prevTd);
+        tr.appendChild(availTd);
         tr.appendChild(qtyTd);
         body.appendChild(tr);
       });
@@ -843,14 +866,14 @@
       if (!/^\d+(\.\d+)?$/.test(input.value.trim())) return false;
       const quantity = Number(input.value.trim());
       if (!Number.isFinite(quantity) || quantity <= 0) return false;
-      if (state.boq === null || state.boq === undefined || !isValidBoq(state.boq)) return false;
-      const boq = Number(String(state.boq).replace(/,/g, ''));
-      if (quantity > boq) {
+      if (!isValidAvailable(state.available)) return false;
+      const available = Number(String(state.available).replace(/,/g, ''));
+      if (quantity > available) {
         input.classList.add('invalid');
         if (showInline) {
           const error = document.createElement('span');
           error.className = 'quantity-error';
-          error.textContent = 'Maximum allowed: ' + formatNumber(boq);
+          error.textContent = 'Maximum allowed: ' + formatNumber(available);
           input.parentElement.appendChild(error);
         }
         return false;
@@ -862,6 +885,12 @@
       if (boq === null || boq === undefined || String(boq).trim() === '') return false;
       const value = Number(String(boq).replace(/,/g, '').trim());
       return Number.isFinite(value) && value >= 0;
+    }
+
+    function isValidAvailable(available) {
+      if (available === null || available === undefined || String(available).trim() === '') return false;
+      const value = Number(String(available).replace(/,/g, '').trim());
+      return Number.isFinite(value);
     }
 
     function setupSaveButton() { document.getElementById('saveButton').addEventListener('click', handleSave); }
@@ -880,11 +909,12 @@
         const state = rowState[itemName];
         if (!state || !state.partNumber) { showError('Please select a Part Number for Item: ' + itemName + '.'); return; }
         if (!isValidBoq(state.boq)) { showError('No valid PO BOQ was found for Item: ' + itemName + '.'); return; }
+        if (!isValidAvailable(state.available)) { showError('No valid Available quantity was found for Item: ' + itemName + '.'); return; }
         if (!state.quantity || !/^\d+(\.\d+)?$/.test(state.quantity)) { showError('Please enter a valid Quantity for Item: ' + itemName + '.'); return; }
         const quantity = Number(state.quantity);
-        const boq = Number(String(state.boq).replace(/,/g, ''));
+        const available = Number(String(state.available).replace(/,/g, ''));
         if (!Number.isFinite(quantity) || quantity <= 0) { showError('Quantity for Item: ' + itemName + ' must be greater than zero.'); return; }
-        if (quantity > boq) { showError('Quantity (' + formatNumber(quantity) + ') cannot be greater than PO BOQ (' + formatNumber(boq) + ') for Item: ' + itemName + '.'); return; }
+        if (quantity > available) { showError('Quantity (' + formatNumber(quantity) + ') cannot be greater than Available (' + formatNumber(available) + ') for Item: ' + itemName + '.'); return; }
         rows.push({ itemName: itemName, partNumber: state.partNumber, quantity: state.quantity });
       }
       saveSubmittals(type, rows);
@@ -1247,7 +1277,7 @@
         } catch (error) {
           const message = error && error.message ? error.message : 'Unable to update the quantity.';
           showSearchModalError(message);
-          if (/PO BOQ/i.test(message)) {
+          if (/PO BOQ|Available/i.test(message)) {
             const input = getRowQtyInput(index);
             if (input) input.classList.add('invalid');
           }
@@ -1347,7 +1377,7 @@
           button.textContent = 'Save All';
           const message = error && error.message ? error.message : 'Unable to update the quantities.';
           showSearchModalError(message);
-          if (/PO BOQ/i.test(message)) {
+          if (/PO BOQ|Available/i.test(message)) {
             highlightInvalidRowsByItemName(extractQuotedItemName(message));
           }
         } finally {
@@ -1499,10 +1529,10 @@
       const items = Array.from(selectedItemNames);
       const allReady = items.length > 0 && items.every(function(itemName) {
         const state = rowState[itemName];
-        if (!state || !state.partNumber || !isValidBoq(state.boq) || !state.quantity) return false;
+        if (!state || !state.partNumber || !isValidAvailable(state.available) || !state.quantity) return false;
         const quantity = Number(state.quantity);
-        const boq = Number(String(state.boq).replace(/,/g, ''));
-        return /^\d+(\.\d+)?$/.test(state.quantity) && Number.isFinite(quantity) && quantity > 0 && quantity <= boq;
+        const available = Number(String(state.available).replace(/,/g, ''));
+        return /^\d+(\.\d+)?$/.test(state.quantity) && Number.isFinite(quantity) && quantity > 0 && quantity <= available;
       });
       button.disabled = !(type && allReady);
     }
