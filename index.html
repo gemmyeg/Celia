@@ -1,3274 +1,942 @@
-const CONFIG = {
-  SPREADSHEET_ID: '1elphgRvvRQ8XnugI8n_4WScSqhUxTk94a2_vh8z9sxI',
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QS Submittals</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+    .page { min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; padding: 50px 20px; }
+    .card { width: 100%; max-width: 980px; background: #fff; border-radius: 18px; padding: 40px; box-shadow: 0 10px 35px rgba(0,0,0,.08); }
+    .header { margin-bottom: 30px; }
+    .header h1 { margin: 0 0 8px; font-size: 32px; line-height: 1.2; color: #111827; }
+    .header p { margin: 0; font-size: 16px; line-height: 1.6; color: #64748b; }
+    .type-section { margin-bottom: 30px; }
+    .section-label { display: block; margin-bottom: 12px; font-size: 15px; font-weight: 700; color: #1e293b; }
+    .type-options { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; }
+    .type-option { position: relative; }
+    .type-checkbox { position: absolute; opacity: 0; pointer-events: none; }
+    .type-label { min-height: 50px; display: flex; align-items: center; justify-content: center; padding: 10px; border: 1px solid #d8dee8; border-radius: 10px; background: #fff; color: #334155; font-size: 14px; font-weight: 700; cursor: pointer; user-select: none; transition: all .2s ease; }
+    .type-label:hover { border-color: #94a3b8; background: #f8fafc; }
+    .type-checkbox:checked + .type-label { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; box-shadow: 0 0 0 2px rgba(37,99,235,.08); }
+    .loading { margin-bottom: 30px; padding: 16px 18px; border-radius: 10px; background: #f8fafc; border: 1px solid #eef2f7; }
+    .loading-header { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 10px; }
+    .loading-left { display: flex; align-items: center; gap: 10px; color: #475569; font-size: 14px; }
+    .loading-percentage { font-size: 14px; font-weight: 700; color: #2563eb; min-width: 42px; text-align: right; }
+    .spinner { width: 18px; height: 18px; border: 2px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-track { width: 100%; height: 8px; overflow: hidden; border-radius: 999px; background: #e2e8f0; }
+    .progress-bar { width: 0%; height: 100%; border-radius: 999px; background: #2563eb; transition: width .25s ease; }
+    .message { margin-bottom: 24px; padding: 13px 15px; border-radius: 9px; font-size: 14px; line-height: 1.5; }
+    .message.error { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .message.success { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+    .field { margin-bottom: 26px; }
+    .field label { display: block; margin-bottom: 9px; font-size: 15px; font-weight: 700; color: #1e293b; }
+    .multi-select { position: relative; }
+    .multi-select-trigger { width: 100%; min-height: 54px; padding: 0 48px 0 15px; border: 1px solid #d8dee8; border-radius: 10px; background: #fff; color: #111827; font-size: 16px; display: flex; align-items: center; position: relative; cursor: pointer; user-select: none; transition: border-color .2s, box-shadow .2s, background .2s; }
+    .multi-select-trigger:hover:not(.disabled) { border-color: #aab4c3; }
+    .multi-select-trigger.open { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .multi-select-trigger.disabled { background: #f8fafc; color: #aeb8c7; cursor: not-allowed; }
+    .trigger-arrow { position: absolute; right: 16px; width: 9px; height: 9px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg) translateY(-3px); }
+    .multi-select-panel { position: absolute; z-index: 50; top: calc(100% + 7px); left: 0; right: 0; background: #fff; border: 1px solid #d8dee8; border-radius: 12px; box-shadow: 0 15px 35px rgba(15,23,42,.14); padding: 12px; display: none; }
+    .multi-select-panel.open { display: block; }
+    .filter-top { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 10px; }
+    .search-input { height: 42px; width: 100%; padding: 0 12px; border: 1px solid #d8dee8; border-radius: 8px; outline: none; font-size: 14px; }
+    .search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.10); }
+    .filter-actions { display: flex; gap: 8px; }
+    .select-all-btn { min-width: 78px; height: 42px; border: 1px solid #d8dee8; background: #f8fafc; border-radius: 8px; padding: 0 12px; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer; }
+    .select-all-btn:hover { background: #eef2f7; }
+    .options-list { max-height: 260px; overflow-y: auto; border-top: 1px solid #eef2f7; padding-top: 6px; }
+    .filter-option { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 8px; cursor: pointer; }
+    .filter-option:hover { background: #f8fafc; }
+    .filter-option input:checked + span { font-weight: 700; color: #1d4ed8; }
+    .filter-option input { width: 17px; height: 17px; accent-color: #2563eb; cursor: pointer; }
+    .filter-option span { font-size: 14px; color: #334155; word-break: break-word; }
+    .empty-options { padding: 15px 8px; color: #94a3b8; font-size: 13px; }
+    .selection-count { margin-top: 8px; font-size: 13px; color: #64748b; }
+    .selected-chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .selected-chip { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 700; }
+    .part-section { margin-top: 4px; margin-bottom: 30px; }
+    .part-selection-list { display: flex; flex-direction: column; gap: 10px; }
+    .part-selection-row { display: grid; grid-template-columns: minmax(180px,.75fr) minmax(240px,1.25fr); gap: 15px; align-items: center; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
+    .part-item-name { font-size: 14px; font-weight: 700; color: #334155; word-break: break-word; }
+    .part-select { width: 100%; height: 48px; padding: 0 12px; border: 1px solid #d8dee8; border-radius: 9px; background: #fff; color: #111827; font-size: 14px; outline: none; cursor: pointer; }
+    .part-select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.10); }
+    .part-select:disabled { background: #f8fafc; color: #aeb8c7; cursor: not-allowed; }
+    .empty-part-state { padding: 18px; border: 1px dashed #cbd5e1; border-radius: 10px; color: #94a3b8; font-size: 14px; text-align: center; background: #f8fafc; }
+    .table-section { margin-top: 10px; margin-bottom: 30px; }
+    .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; }
+    .quantity-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    .quantity-table th { padding: 13px 14px; text-align: left; background: #f1f5f9; color: #334155; font-size: 13px; font-weight: 700; border-bottom: 1px solid #e2e8f0; }
+    .quantity-table td { padding: 12px 14px; border-bottom: 1px solid #eef2f7; vertical-align: middle; font-size: 14px; color: #334155; }
+    .quantity-table tr:last-child td { border-bottom: none; }
+    .quantity-table .item-cell { font-weight: 700; color: #1e293b; }
+    .quantity-table .muted { color: #94a3b8; }
+    .quantity-input { width: 150px; height: 44px; padding: 0 12px; border: 1px solid #d8dee8; border-radius: 8px; background: #fff; color: #111827; font-size: 14px; outline: none; }
+    .quantity-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.10); }
+    .quantity-input:disabled { background: #f8fafc; color: #aeb8c7; cursor: not-allowed; }
+    .quantity-input.invalid { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.10); }
+    .quantity-hint { display: block; margin-top: 5px; color: #64748b; font-size: 12px; }
+    .quantity-error { display: block; margin-top: 5px; color: #b91c1c; font-size: 12px; font-weight: 700; }
+    .save-container { display: flex; justify-content: flex-end; margin-top: 10px; }
+    .save-button { min-width: 150px; height: 52px; padding: 0 25px; border: none; border-radius: 10px; background: #2563eb; color: #fff; font-size: 15px; font-weight: 700; cursor: pointer; transition: background .2s, transform .1s, opacity .2s; }
+    .save-button:hover:not(:disabled) { background: #1d4ed8; }
+    .save-button:active:not(:disabled) { transform: translateY(1px); }
+    .save-button:disabled { opacity: .6; cursor: not-allowed; }
 
-  /*
-   * Source sheet
-   */
-  SOURCE_SHEET_NAME: 'Items_Profiles',
+    .last-action-log {
+      margin-top: 14px;
+      padding: 13px 16px;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .last-action-info { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .last-action-icon { font-size: 15px; color: #64748b; flex: none; }
+    .last-action-text { font-size: 13px; color: #475569; line-height: 1.5; word-break: break-word; }
+    .last-action-text strong { color: #1e293b; }
+    .undo-button {
+      flex: none;
+      height: 36px;
+      padding: 0 16px;
+      border: 1px solid #2563eb;
+      background: #fff;
+      color: #2563eb;
+      font-size: 13px;
+      font-weight: 700;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .undo-button:hover:not(:disabled) { background: #eff6ff; }
+    .undo-button:disabled { opacity: .6; cursor: not-allowed; }
+    .undo-button.done { border-color: #cbd5e1; color: #94a3b8; }
 
-  /*
-   * Destination sheet
-   */
-  SUBMITTALS_SHEET_NAME: 'Submittals QS',
+    /* ===================== Result Modal (Pop-up) ===================== */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15,23,42,.45);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: auto; }
+    .modal-box {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 16px;
+      padding: 30px;
+      box-shadow: 0 25px 60px rgba(15,23,42,.25);
+      position: relative;
+      transform: translateY(10px) scale(.97);
+      transition: transform .18s ease;
+    }
+    .modal-overlay.open .modal-box { transform: translateY(0) scale(1); }
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: #f1f5f9;
+      color: #64748b;
+      border-radius: 8px;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .modal-close:hover { background: #e2e8f0; color: #334155; }
+    .modal-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: #f0fdf4;
+      color: #16a34a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    .modal-title { margin: 0 0 6px; font-size: 20px; font-weight: 700; color: #111827; }
+    .modal-subtitle { margin: 0 0 22px; font-size: 14px; color: #64748b; line-height: 1.5; }
+    .modal-result-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; padding: 11px 0; }
+    .modal-result-row + .modal-result-row { border-top: 1px solid #eef2f7; }
+    .modal-result-label { font-weight: 700; color: #334155; font-size: 14px; }
+    .modal-result-value { text-align: right; color: #0f172a; font-size: 14px; word-break: break-word; }
+    .modal-ok-button {
+      width: 100%;
+      height: 48px;
+      margin-top: 24px;
+      border: none;
+      border-radius: 10px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .modal-ok-button:hover { background: #1d4ed8; }
+    @media (max-width: 600px) {
+      .modal-box { padding: 24px 20px; }
+    }
+    /* =================================================================== */
 
-  /*
-   * Header row in Items_Profiles
-   */
-  HEADER_ROW: 1
-};
+    @media (max-width: 700px) {
+      .type-options { grid-template-columns: repeat(2,1fr); }
+      .part-selection-row { grid-template-columns: 1fr; gap: 8px; }
+    }
+    @media (max-width: 600px) {
+      .page { padding: 20px 14px; }
+      .card { padding: 25px 20px; border-radius: 13px; }
+      .header h1 { font-size: 26px; }
+      .header p { font-size: 14px; }
+      .save-container { justify-content: stretch; }
+      .save-button { width: 100%; }
+      .filter-top { grid-template-columns: 1fr; }
+      .filter-actions { width: 100%; }
+      .filter-actions .select-all-btn { flex: 1; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="card">
+      <div class="header">
+        <h1>QS Submittals</h1>
+        <p>Select one submittal type, then select one or more Item Names. Each selected Item gets its own Part Number selection and Quantity.</p>
+      </div>
 
+      <div class="type-section">
+        <span class="section-label">Submittal Type</span>
+        <div class="type-options">
+          <div class="type-option"><input type="checkbox" id="typeMIR" class="type-checkbox" value="MIR"><label for="typeMIR" class="type-label">MIR</label></div>
+          <div class="type-option"><input type="checkbox" id="typeWIR" class="type-checkbox" value="WIR"><label for="typeWIR" class="type-label">WIR</label></div>
+          <div class="type-option"><input type="checkbox" id="typeCIR" class="type-checkbox" value="CIR"><label for="typeCIR" class="type-label">CIR</label></div>
+          <div class="type-option"><input type="checkbox" id="typeHandover" class="type-checkbox" value="Handover"><label for="typeHandover" class="type-label">Handover</label></div>
+          <div class="type-option"><input type="checkbox" id="typeIPC" class="type-checkbox" value="IPC"><label for="typeIPC" class="type-label">IPC</label></div>
+        </div>
+      </div>
 
-/**
- * =========================================================
- * API ENTRY POINT
- * =========================================================
- */
-function doGet(e) {
+      <div id="loading" class="loading">
+        <div class="loading-header">
+          <div class="loading-left"><div id="spinner" class="spinner"></div><span id="loadingText">Loading database...</span></div>
+          <div id="loadingPercentage" class="loading-percentage">0%</div>
+        </div>
+        <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      </div>
 
-  try {
+      <div id="errorMessage" class="message error" hidden></div>
+      <div id="successMessage" class="message success" hidden></div>
 
-    const action =
-      e &&
-      e.parameter &&
-      e.parameter.action
-        ? e.parameter.action
-        : 'getDatabaseData';
+      <div class="field">
+        <label for="itemNameTrigger">Item Name</label>
+        <div id="itemMultiSelect" class="multi-select">
+          <div id="itemNameTrigger" class="multi-select-trigger disabled" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true">
+            <span id="itemNameDisplay">Select Item Name</span>
+            <span class="trigger-arrow"></span>
+          </div>
+          <div id="itemNamePanel" class="multi-select-panel" role="listbox" aria-multiselectable="true">
+            <div class="filter-top">
+              <input id="itemSearch" class="search-input" type="text" autocomplete="off" placeholder="Search Item Name...">
+              <div class="filter-actions">
+                <button id="selectAllButton" class="select-all-btn" type="button">Select All</button>
+                <button id="clearAllButton" class="select-all-btn" type="button">Clear</button>
+              </div>
+            </div>
+            <div id="itemOptionsList" class="options-list"></div>
+          </div>
+          <div id="selectionCount" class="selection-count">0 items selected</div>
+          <div id="selectedChipList" class="selected-chip-list"></div>
+        </div>
+      </div>
 
+      <div class="part-section">
+        <span class="section-label">Part Number</span>
+        <div id="partSelectionList" class="part-selection-list">
+          <div class="empty-part-state">Select one or more Item Names to load their Part Numbers.</div>
+        </div>
+      </div>
 
-    /*
-     * =======================================================
-     * GET DATABASE DATA
-     * =======================================================
-     */
-    if (action === 'getDatabaseData') {
+      <div class="table-section">
+        <span class="section-label">Quantity</span>
+        <div class="table-wrap">
+          <table class="quantity-table">
+            <thead>
+              <tr><th>Item</th><th>Part Number</th><th>BOQ</th><th>Quantity</th></tr>
+            </thead>
+            <tbody id="quantityTableBody">
+              <tr><td colspan="4" class="muted" style="text-align:center;">Select Item Names and Part Numbers to build the table.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      const data =
-        getDatabaseData();
+      <div class="save-container">
+        <button type="button" id="saveButton" class="save-button" disabled>Save</button>
+      </div>
 
+      <div id="lastActionLog" class="last-action-log" hidden>
+        <div class="last-action-info">
+          <span class="last-action-icon">&#8635;</span>
+          <span id="lastActionText" class="last-action-text"></span>
+        </div>
+        <button type="button" id="undoButton" class="undo-button">Undo</button>
+      </div>
+    </section>
+  </main>
 
-      return createApiResponse(
-        e,
-        {
-          success: true,
-          data: data
+  <div id="resultModalOverlay" class="modal-overlay" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button type="button" id="modalCloseButton" class="modal-close" aria-label="Close">&times;</button>
+      <div class="modal-icon">&#10003;</div>
+      <h3 id="modalTitle" class="modal-title">Submittal Saved</h3>
+      <p id="modalSubtitle" class="modal-subtitle">Your submittal was saved successfully.</p>
+      <div class="modal-result-row"><span class="modal-result-label">Type</span><span id="modalSelectedType" class="modal-result-value"></span></div>
+      <div class="modal-result-row"><span class="modal-result-label">Rows Saved</span><span id="modalSelectedCount" class="modal-result-value"></span></div>
+      <button type="button" id="modalOkButton" class="modal-ok-button">OK</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'https://script.google.com/macros/s/AKfycbxzzMbaGO6WFwUjVauAIWEiS_Z02HAezFNHHef3XV_PK8I39FY2Q4G9tlCF8xzMY0Yq1g/exec';
+
+    let databaseData = { itemNames: [], dependentPartNumbers: {} };
+    let selectedItemNames = new Set();
+    let rowState = {};
+    let progressValue = 0;
+    let progressTimer = null;
+    let detailsRequestSequence = 0;
+    let lastAction = null;
+
+    document.addEventListener('DOMContentLoaded', initialize);
+
+    function initialize() {
+      setupTypeCheckboxes();
+      setupItemMultiSelect();
+      setupSaveButton();
+      setupResultModal();
+      setupUndoButton();
+      startProgress();
+      loadDatabaseData();
+    }
+
+    function setupTypeCheckboxes() {
+      document.querySelectorAll('.type-checkbox').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+          if (this.checked) {
+            document.querySelectorAll('.type-checkbox').forEach(function(other) {
+              if (other !== checkbox) other.checked = false;
+            });
+            enableItemSelector(true);
+          } else if (!getSelectedType()) {
+            enableItemSelector(false);
+          }
+          hideError();
+          hideSuccess();
+        });
+      });
+    }
+
+    function setupItemMultiSelect() {
+      const trigger = document.getElementById('itemNameTrigger');
+      const panel = document.getElementById('itemNamePanel');
+      const search = document.getElementById('itemSearch');
+      const selectAll = document.getElementById('selectAllButton');
+      const clearAll = document.getElementById('clearAllButton');
+
+      trigger.addEventListener('click', function() {
+        if (trigger.classList.contains('disabled')) return;
+        const opening = !panel.classList.contains('open');
+        panel.classList.toggle('open', opening);
+        trigger.classList.toggle('open', opening);
+        trigger.setAttribute('aria-expanded', String(opening));
+        if (opening) {
+          search.value = '';
+          renderItemOptions();
+          setTimeout(function() { search.focus(); }, 0);
         }
-      );
-
-    }
-
-
-    /*
-     * =======================================================
-     * GET PART DETAILS
-     * =======================================================
-     */
-    if (action === 'getPartDetails') {
-
-      const itemName =
-        e &&
-        e.parameter &&
-        e.parameter.itemName
-          ? String(
-              e.parameter.itemName
-            ).trim()
-          : '';
-
-      const partNumber =
-        e &&
-        e.parameter &&
-        e.parameter.partNumber
-          ? String(
-              e.parameter.partNumber
-            ).trim()
-          : '';
-
-      if (!itemName) {
-
-        throw new Error(
-          'Please select an Item Name.'
-        );
-
-      }
-
-      if (!partNumber) {
-
-        throw new Error(
-          'Please select a Part Number.'
-        );
-
-      }
-
-      const details =
-        lookupPartNumber(
-          partNumber,
-          itemName
-        );
-
-      if (!details.found) {
-
-        throw new Error(
-          'The selected Item Name and Part Number were not found in "' +
-          CONFIG.SOURCE_SHEET_NAME +
-          '".'
-        );
-
-      }
-
-      return createApiResponse(
-        e,
-        {
-          success: true,
-          data: details
-        }
-      );
-
-    }
-
-
-    /*
-     * =======================================================
-     * SAVE MULTIPLE SUBMITTALS
-     * =======================================================
-     */
-    if (action === 'saveSubmittals') {
-
-      const result =
-        saveSubmittals(e);
-
-      return createApiResponse(
-        e,
-        result
-      );
-
-    }
-
-
-    /*
-     * =======================================================
-     * SAVE SUBMITTAL
-     * =======================================================
-     */
-    if (action === 'saveSubmittal') {
-
-      const result =
-        saveSubmittal(e);
-
-
-      return createApiResponse(
-        e,
-        result
-      );
-
-    }
-
-
-    /*
-     * =======================================================
-     * UNDO SUBMITTAL
-     *
-     * Removes every row in "Submittals QS" that shares the
-     * given Submittal Code. Since one Save action always
-     * writes rows under exactly one Submittal Code, this
-     * safely undoes exactly the rows written by that action.
-     * =======================================================
-     */
-    if (action === 'undoSubmittal') {
-
-      const result =
-        undoSubmittal(e);
-
-      return createApiResponse(
-        e,
-        result
-      );
-
-    }
-
-
-    /*
-     * =======================================================
-     * UNKNOWN ACTION
-     * =======================================================
-     */
-    return createApiResponse(
-      e,
-      {
-        success: false,
-        error: 'Unknown API action.'
-      }
-    );
-
-
-  } catch (error) {
-
-    const errorResponse = {
-
-      success: false,
-
-      error:
-        error &&
-        error.message
-          ? error.message
-          : String(error)
-
-    };
-
-
-    return createApiResponse(
-      e,
-      errorResponse
-    );
-
-  }
-
-}
-
-
-/**
- * =========================================================
- * CREATE API RESPONSE
- *
- * Supports:
- * - Normal JSON
- * - JSONP for GitHub Pages
- * =========================================================
- */
-function createApiResponse(
-  e,
-  data
-) {
-
-  const callback =
-    e &&
-    e.parameter &&
-    e.parameter.prefix
-      ? e.parameter.prefix
-      : '';
-
-
-  /*
-   * JSONP
-   */
-  if (callback) {
-
-    if (
-      !/^[a-zA-Z_$][0-9a-zA-Z_$]*$/.test(
-        callback
-      )
-    ) {
-
-      return ContentService
-
-        .createTextOutput(
-          JSON.stringify({
-            success: false,
-            error: 'Invalid callback name.'
-          })
-        )
-
-        .setMimeType(
-          ContentService.MimeType.JSON
-        );
-
-    }
-
-
-    return ContentService
-
-      .createTextOutput(
-        callback +
-        '(' +
-        JSON.stringify(data) +
-        ');'
-      )
-
-      .setMimeType(
-        ContentService.MimeType.JAVASCRIPT
-      );
-
-  }
-
-
-  /*
-   * Normal JSON
-   */
-  return ContentService
-
-    .createTextOutput(
-      JSON.stringify(data)
-    )
-
-    .setMimeType(
-      ContentService.MimeType.JSON
-    );
-
-}
-
-
-/**
- * =========================================================
- * GET DATABASE DATA
- *
- * Source:
- * Items_Profiles
- *
- * Relationship:
- * Item Name -> Part Numbers
- *
- * Part Number is located dynamically using the header
- * "Part Number".
- *
- * Item Name is located dynamically using the header
- * "Item Name".
- * =========================================================
- */
-function getDatabaseData() {
-
-  const spreadsheet =
-    SpreadsheetApp.openById(
-      CONFIG.SPREADSHEET_ID
-    );
-
-
-  const sheet =
-    spreadsheet.getSheetByName(
-      CONFIG.SOURCE_SHEET_NAME
-    );
-
-
-  if (!sheet) {
-
-    throw new Error(
-      'Sheet "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '" was not found.'
-    );
-
-  }
-
-
-  const lastRow =
-    sheet.getLastRow();
-
-
-  const lastColumn =
-    sheet.getLastColumn();
-
-
-  if (
-    lastRow <
-    CONFIG.HEADER_ROW ||
-    lastColumn === 0
-  ) {
-
-    return {
-
-      itemNames: [],
-
-      dependentPartNumbers: {}
-
-    };
-
-  }
-
-
-  /*
-   * Read headers.
-   */
-  const headers =
-    sheet
-      .getRange(
-        CONFIG.HEADER_ROW,
-        1,
-        1,
-        lastColumn
-      )
-      .getDisplayValues()[0];
-
-
-  const partNumberColumn =
-    findHeaderColumn(
-      headers,
-      [
-        'Part Number',
-        'PartNumber',
-        'Part No',
-        'Part No.',
-        'PN'
-      ]
-    );
-
-
-  const itemNameColumn =
-    findHeaderColumn(
-      headers,
-      [
-        'Item Name',
-        'ItemName',
-        'Item'
-      ]
-    );
-
-
-  if (!partNumberColumn) {
-
-    throw new Error(
-      'Column "Part Number" was not found in "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '".'
-    );
-
-  }
-
-
-  if (!itemNameColumn) {
-
-    throw new Error(
-      'Column "Item Name" was not found in "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '".'
-    );
-
-  }
-
-
-  /*
-   * No data rows.
-   */
-  if (
-    lastRow <=
-    CONFIG.HEADER_ROW
-  ) {
-
-    return {
-
-      itemNames: [],
-
-      dependentPartNumbers: {}
-
-    };
-
-  }
-
-
-  const startRow =
-    CONFIG.HEADER_ROW + 1;
-
-
-  const numberOfRows =
-    lastRow -
-    CONFIG.HEADER_ROW;
-
-
-  /*
-   * Read complete data range once.
-   */
-  const values =
-    sheet
-      .getRange(
-        startRow,
-        1,
-        numberOfRows,
-        lastColumn
-      )
-      .getDisplayValues();
-
-
-  const dependentPartNumbers = {};
-
-  const itemNameSet =
-    new Set();
-
-
-  /*
-   * Build:
-   *
-   * Item Name
-   *      ->
-   * Part Numbers
-   */
-  for (
-    let i = 0;
-    i < values.length;
-    i++
-  ) {
-
-    const row =
-      values[i];
-
-
-    const partNumber =
-      String(
-        row[
-          partNumberColumn - 1
-        ]
-      ).trim();
-
-
-    const itemName =
-      String(
-        row[
-          itemNameColumn - 1
-        ]
-      ).trim();
-
-
-    /*
-     * Ignore rows without Item Name.
-     */
-    if (!itemName) {
-
-      continue;
-
-    }
-
-
-    itemNameSet.add(
-      itemName
-    );
-
-
-    /*
-     * Create Part Number list.
-     */
-    if (
-      !dependentPartNumbers[
-        itemName
-      ]
-    ) {
-
-      dependentPartNumbers[
-        itemName
-      ] = [];
-
-    }
-
-
-    /*
-     * Avoid duplicate Part Numbers.
-     */
-    if (
-      partNumber &&
-      !dependentPartNumbers[
-        itemName
-      ].includes(
-        partNumber
-      )
-    ) {
-
-      dependentPartNumbers[
-        itemName
-      ].push(
-        partNumber
-      );
-
-    }
-
-  }
-
-
-  /*
-   * Convert Item Names to Array.
-   */
-  const itemNames =
-    Array.from(
-      itemNameSet
-    );
-
-
-  /*
-   * Sort Item Names.
-   */
-  itemNames.sort(
-    function(a, b) {
-
-      return a.localeCompare(
-        b,
-        undefined,
-        {
-          numeric: true,
-          sensitivity: 'base'
-        }
-      );
-
-    }
-  );
-
-
-  /*
-   * Sort Part Numbers.
-   */
-  Object.keys(
-    dependentPartNumbers
-  ).forEach(
-    function(itemName) {
-
-      dependentPartNumbers[
-        itemName
-      ].sort(
-        function(a, b) {
-
-          return a.localeCompare(
-            b,
-            undefined,
-            {
-              numeric: true,
-              sensitivity: 'base'
-            }
-          );
-
-        }
-      );
-
-    }
-  );
-
-
-  return {
-
-    itemNames:
-      itemNames,
-
-    dependentPartNumbers:
-      dependentPartNumbers
-
-  };
-
-}
-
-
-/**
- * =========================================================
- * SAVE SUBMITTAL
- *
- * Saves:
- *
- * Timestamp
- * Type
- * Item Name
- * Part Number
- * Scope
- * Unit
- * Vendor
- * BOQ
- * Quantity
- *
- * into:
- *
- * Submittals QS
- * =========================================================
- */
-function saveSubmittal(e) {
-
-  /*
-   * ---------------------------------------------------------
-   * Read parameters
-   * ---------------------------------------------------------
-   */
-
-  const type =
-    e &&
-    e.parameter &&
-    e.parameter.type
-      ? String(
-          e.parameter.type
-        ).trim()
-      : '';
-
-
-  const itemName =
-    e &&
-    e.parameter &&
-    e.parameter.itemName
-      ? String(
-          e.parameter.itemName
-        ).trim()
-      : '';
-
-
-  const partNumber =
-    e &&
-    e.parameter &&
-    e.parameter.partNumber
-      ? String(
-          e.parameter.partNumber
-        ).trim()
-      : '';
-
-
-  const quantityRaw =
-    e &&
-    e.parameter &&
-    e.parameter.quantity !== undefined
-      ? String(
-          e.parameter.quantity
-        ).trim()
-      : '';
-
-
-  /*
-   * ---------------------------------------------------------
-   * Validate Type
-   * ---------------------------------------------------------
-   */
-
-  const allowedTypes = [
-
-    'MIR',
-
-    'WIR',
-
-    'CIR',
-
-    'Handover',
-
-    'IPC'
-
-  ];
-
-
-  if (
-    !allowedTypes.includes(
-      type
-    )
-  ) {
-
-    throw new Error(
-      'Please select a valid submittal type.'
-    );
-
-  }
-
-
-  /*
-   * ---------------------------------------------------------
-   * Validate Item Name
-   * ---------------------------------------------------------
-   */
-
-  if (!itemName) {
-
-    throw new Error(
-      'Please select an Item Name.'
-    );
-
-  }
-
-
-  /*
-   * ---------------------------------------------------------
-   * Validate Part Number
-   * ---------------------------------------------------------
-   */
-
-  if (!partNumber) {
-
-    throw new Error(
-      'Please select a Part Number.'
-    );
-
-  }
-
-
-  /*
-   * ---------------------------------------------------------
-   * Validate Quantity
-   * ---------------------------------------------------------
-   */
-
-  if (!quantityRaw) {
-
-    throw new Error(
-      'Please enter Quantity.'
-    );
-
-  }
-
-
-  if (
-    !/^\d+(\.\d+)?$/.test(
-      quantityRaw
-    )
-  ) {
-
-    throw new Error(
-      'Quantity must contain numbers only.'
-    );
-
-  }
-
-
-  const quantity =
-    Number(
-      quantityRaw
-    );
-
-
-  if (
-    !Number.isFinite(
-      quantity
-    ) ||
-    quantity <= 0
-  ) {
-
-    throw new Error(
-      'Quantity must be greater than zero.'
-    );
-
-  }
-
-
-  /*
-   * ---------------------------------------------------------
-   * Lookup Part Number
-   * ---------------------------------------------------------
-   */
-
-  const lookupData =
-    lookupPartNumber(
-      partNumber
-    );
-
-
-  /*
-   * ---------------------------------------------------------
-   * Validate Part Number exists
-   * ---------------------------------------------------------
-   */
-
-  if (
-    !lookupData.found
-  ) {
-
-    throw new Error(
-      'Part Number "' +
-      partNumber +
-      '" was not found in "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '".'
-    );
-
-  }
-
-
-  /*
-   * ---------------------------------------------------------
-   * Validate Item Name + Part Number relationship
-   * ---------------------------------------------------------
-   */
-
-  if (
-    lookupData.itemName &&
-    lookupData.itemName !== itemName
-  ) {
-
-    throw new Error(
-      'The selected Part Number does not belong to the selected Item Name.'
-    );
-
-  }
-
-
-  /*
-   * ---------------------------------------------------------
-   * Validate BOQ
-   * ---------------------------------------------------------
-   */
-
-  const boqRaw =
-    String(
-      lookupData.boq || ''
-    ).trim();
-
-
-  if (!boqRaw) {
-
-    throw new Error(
-      'No BOQ value was found for the selected Part Number.'
-    );
-
-  }
-
-
-  /*
-   * Remove commas from BOQ.
-   *
-   * Examples:
-   *
-   * 1,000
-   * 10,500.50
-   */
-  const boqNormalized =
-    boqRaw.replace(
-      /,/g,
-      ''
-    );
-
-
-  const boq =
-    Number(
-      boqNormalized
-    );
-
-
-  if (
-    !Number.isFinite(
-      boq
-    ) ||
-    boq < 0
-  ) {
-
-    throw new Error(
-      'The BOQ value for the selected Part Number is not a valid number.'
-    );
-
-  }
-
-
-  /*
-   * ---------------------------------------------------------
-   * IMPORTANT:
-   *
-   * Quantity cannot be greater than BOQ.
-   * ---------------------------------------------------------
-   */
-
-  if (
-    quantity > boq
-  ) {
-
-    throw new Error(
-      'Quantity (' +
-      quantity +
-      ') cannot be greater than PO BOQ (' +
-      boq +
-      ').'
-    );
-
-  }
-
-
-  /*
-   * ---------------------------------------------------------
-   * Open Spreadsheet
-   * ---------------------------------------------------------
-   */
-
-  const spreadsheet =
-    SpreadsheetApp.openById(
-      CONFIG.SPREADSHEET_ID
-    );
-
-
-  /*
-   * ---------------------------------------------------------
-   * Get or Create Submittals QS
-   * ---------------------------------------------------------
-   */
-
-  let sheet =
-    spreadsheet.getSheetByName(
-      CONFIG.SUBMITTALS_SHEET_NAME
-    );
-
-
-  if (!sheet) {
-
-    sheet =
-      spreadsheet.insertSheet(
-        CONFIG.SUBMITTALS_SHEET_NAME
-      );
-
-  }
-
-
-  /*
-   * ---------------------------------------------------------
-   * Ensure Headers
-   * ---------------------------------------------------------
-   */
-
-  ensureSubmittalsHeaders(
-    sheet
-  );
-
-
-  /*
-   * ---------------------------------------------------------
-   * Lock the operation
-   * ---------------------------------------------------------
-   */
-
-  const lock =
-    LockService.getScriptLock();
-
-
-  lock.waitLock(
-    10000
-  );
-
-
-  try {
-
-    /*
-     * -------------------------------------------------------
-     * Server Timestamp
-     * -------------------------------------------------------
-     */
-
-    const timestamp =
-      new Date();
-
-
-    /*
-     * -------------------------------------------------------
-     * Append complete row
-     * -------------------------------------------------------
-     */
-
-    const submittalCode =
-      getNextSubmittalCode(
-        sheet,
-        type
-      );
-
-
-    sheet.appendRow([
-
-      timestamp,
-
-      type,
-
-      itemName,
-
-      partNumber,
-
-      lookupData.scope,
-
-      lookupData.unit,
-
-      lookupData.vendor,
-
-      lookupData.boq,
-
-      quantity,
-
-      submittalCode
-
-    ]);
-
-
-    /*
-     * -------------------------------------------------------
-     * Format Timestamp
-     * -------------------------------------------------------
-     */
-
-    const lastRow =
-      sheet.getLastRow();
-
-
-    sheet
-      .getRange(
-        lastRow,
-        1
-      )
-      .setNumberFormat(
-        'yyyy-mm-dd hh:mm:ss'
-      );
-
-
-    /*
-     * -------------------------------------------------------
-     * Return Success
-     * -------------------------------------------------------
- */
-
-    return {
-
-      success: true,
-
-      message:
-        'Submittal saved successfully.',
-
-      data: {
-
-        timestamp:
-          timestamp.toISOString(),
-
-        type:
-          type,
-
-        submittalCode:
-          submittalCode,
-
-        itemName:
-          itemName,
-
-        partNumber:
-          partNumber,
-
-        scope:
-          lookupData.scope,
-
-        unit:
-          lookupData.unit,
-
-        vendor:
-          lookupData.vendor,
-
-        boq:
-          lookupData.boq,
-
-        quantity:
-          quantity
-
-      }
-
-    };
-
-
-  } finally {
-
-    lock.releaseLock();
-
-  }
-
-}
-
-
-/**
- * =========================================================
- * SAVE MULTIPLE SUBMITTALS
- *
- * Receives JSON rows from the GitHub Pages frontend:
- *
- * [
- *   {
- *     itemName: '...',
- *     partNumber: '...',
- *     quantity: '...'
- *   }
- * ]
- *
- * Every row is validated against Items_Profiles before it
- * is written to Submittals QS.
- *
- * One selected Item / Part Number = one row in the sheet.
- * =========================================================
- */
-function saveSubmittals(e) {
-
-  const type =
-    e &&
-    e.parameter &&
-    e.parameter.type
-      ? String(
-          e.parameter.type
-        ).trim()
-      : '';
-
-
-  const rowsRaw =
-    e &&
-    e.parameter &&
-    e.parameter.rows
-      ? String(
-          e.parameter.rows
-        ).trim()
-      : '';
-
-
-  const allowedTypes = [
-
-    'MIR',
-
-    'WIR',
-
-    'CIR',
-
-    'Handover',
-
-    'IPC'
-
-  ];
-
-
-  if (
-    !allowedTypes.includes(
-      type
-    )
-  ) {
-
-    throw new Error(
-      'Please select a valid submittal type.'
-    );
-
-  }
-
-
-  if (!rowsRaw) {
-
-    throw new Error(
-      'No submittal rows were received.'
-    );
-
-  }
-
-
-  let rows;
-
-
-  try {
-
-    rows =
-      JSON.parse(
-        rowsRaw
-      );
-
-  } catch (error) {
-
-    throw new Error(
-      'Invalid submittal data.'
-    );
-
-  }
-
-
-  if (
-    !Array.isArray(rows) ||
-    rows.length === 0
-  ) {
-
-    throw new Error(
-      'Please select at least one Item Name.'
-    );
-
-  }
-
-
-  /*
-   * Prevent unexpectedly large requests.
-   */
-  if (
-    rows.length > 500
-  ) {
-
-    throw new Error(
-      'Too many rows were submitted at once.'
-    );
-
-  }
-
-
-  /*
-   * =======================================================
-   * OPEN SPREADSHEET
-   * =======================================================
-   */
-  const spreadsheet =
-    SpreadsheetApp.openById(
-      CONFIG.SPREADSHEET_ID
-    );
-
-
-  const sourceSheet =
-    spreadsheet.getSheetByName(
-      CONFIG.SOURCE_SHEET_NAME
-    );
-
-
-  if (!sourceSheet) {
-
-    throw new Error(
-      'Sheet "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '" was not found.'
-    );
-
-  }
-
-
-  /*
-   * =======================================================
-   * PREPARE SOURCE HEADER MAP
-   * =======================================================
-   */
-  const sourceLastColumn =
-    sourceSheet.getLastColumn();
-
-
-  if (
-    sourceLastColumn === 0
-  ) {
-
-    throw new Error(
-      'The source sheet "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '" is empty.'
-    );
-
-  }
-
-
-  const sourceHeaders =
-    sourceSheet
-      .getRange(
-        CONFIG.HEADER_ROW,
-        1,
-        1,
-        sourceLastColumn
-      )
-      .getDisplayValues()[0];
-
-
-  const partNumberColumn =
-    findHeaderColumn(
-      sourceHeaders,
-      [
-        'Part Number',
-        'PartNumber',
-        'Part No',
-        'Part No.',
-        'PN'
-      ]
-    );
-
-
-  const itemNameColumn =
-    findHeaderColumn(
-      sourceHeaders,
-      [
-        'Item Name',
-        'ItemName',
-        'Item'
-      ]
-    );
-
-
-  const scopeColumn =
-    findHeaderColumn(
-      sourceHeaders,
-      [
-        'Scope'
-      ]
-    );
-
-
-  const unitColumn =
-    findHeaderColumn(
-      sourceHeaders,
-      [
-        'Unit',
-        'Units'
-      ]
-    );
-
-
-  const vendorColumn =
-    findHeaderColumn(
-      sourceHeaders,
-      [
-        'Vendor',
-        'Supplier'
-      ]
-    );
-
-
-  const boqColumn =
-    findHeaderColumn(
-      sourceHeaders,
-      [
-        'BOQ',
-        'Boq',
-        'BOQ Number',
-        'BOQ No',
-        'BOQ No.'
-      ]
-    );
-
-
-  if (!partNumberColumn) {
-
-    throw new Error(
-      'Column "Part Number" was not found in "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '".'
-    );
-
-  }
-
-
-  if (!itemNameColumn) {
-
-    throw new Error(
-      'Column "Item Name" was not found in "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '".'
-    );
-
-  }
-
-
-  /*
-   * =======================================================
-   * READ SOURCE DATA ONCE
-   * =======================================================
-   */
-  const sourceLastRow =
-    sourceSheet.getLastRow();
-
-
-  let sourceValues = [];
-
-
-  if (
-    sourceLastRow >
-    CONFIG.HEADER_ROW
-  ) {
-
-    sourceValues =
-      sourceSheet
-        .getRange(
-          CONFIG.HEADER_ROW + 1,
-          1,
-          sourceLastRow - CONFIG.HEADER_ROW,
-          sourceLastColumn
-        )
-        .getDisplayValues();
-
-  }
-
-
-  /*
-   * =======================================================
-   * BUILD LOOKUP MAP
-   *
-   * Key:
-   *
-   * normalized Item Name
-   * +
-   * normalized Part Number
-   * =======================================================
-   */
-  const lookupMap = {};
-
-
-  sourceValues.forEach(
-    function(row) {
-
-      const currentItemName =
-        itemNameColumn
-          ? String(
-              row[
-                itemNameColumn - 1
-              ]
-            ).trim()
-          : '';
-
-
-      const currentPartNumber =
-        String(
-          row[
-            partNumberColumn - 1
-          ]
-        ).trim();
-
-
-      if (
-        !currentItemName ||
-        !currentPartNumber
-      ) {
-
-        return;
-
-      }
-
-
-      const key =
-        normalizeValue(
-          currentItemName
-        ) +
-        '||' +
-        normalizeValue(
-          currentPartNumber
-        );
-
-
-      /*
-       * Keep the first matching source row.
-       */
-      if (
-        lookupMap[key]
-      ) {
-
-        return;
-
-      }
-
-
-      lookupMap[key] = {
-
-        itemName:
-          currentItemName,
-
-        scope:
-          scopeColumn
-            ? String(
-                row[
-                  scopeColumn - 1
-                ]
-              ).trim()
-            : '',
-
-        unit:
-          unitColumn
-            ? String(
-                row[
-                  unitColumn - 1
-                ]
-              ).trim()
-            : '',
-
-        vendor:
-          vendorColumn
-            ? String(
-                row[
-                  vendorColumn - 1
-                ]
-              ).trim()
-            : '',
-
-        boq:
-          boqColumn
-            ? String(
-                row[
-                  boqColumn - 1
-                ]
-              ).trim()
-            : ''
-
-      };
-
-    }
-  );
-
-
-  /*
-   * =======================================================
-   * VALIDATE EVERY ROW BEFORE WRITING ANYTHING
-   *
-   * This makes the operation atomic from the user's point
-   * of view: if one row is invalid, nothing is written.
-   * =======================================================
-   */
-  const validatedRows = [];
-
-
-  rows.forEach(
-    function(row, index) {
-
-      if (
-        !row ||
-        typeof row !== 'object'
-      ) {
-
-        throw new Error(
-          'Invalid row #' +
-          (index + 1) +
-          '.'
-        );
-
-      }
-
-
-      const itemName =
-        row.itemName !== undefined &&
-        row.itemName !== null
-          ? String(
-              row.itemName
-            ).trim()
-          : '';
-
-
-      const partNumber =
-        row.partNumber !== undefined &&
-        row.partNumber !== null
-          ? String(
-              row.partNumber
-            ).trim()
-          : '';
-
-
-      const quantityRaw =
-        row.quantity !== undefined &&
-        row.quantity !== null
-          ? String(
-              row.quantity
-            ).trim()
-          : '';
-
-
-      if (!itemName) {
-
-        throw new Error(
-          'Please select an Item Name for row #' +
-          (index + 1) +
-          '.'
-        );
-
-      }
-
-
-      if (!partNumber) {
-
-        throw new Error(
-          'Please select a Part Number for "' +
-          itemName +
-          '".'
-        );
-
-      }
-
-
-      if (!quantityRaw) {
-
-        throw new Error(
-          'Please enter Quantity for "' +
-          itemName +
-          '".'
-        );
-
-      }
-
-
-      if (
-        !/^\d+(\.\d+)?$/.test(
-          quantityRaw
-        )
-      ) {
-
-        throw new Error(
-          'Quantity for "' +
-          itemName +
-          '" must contain numbers only.'
-        );
-
-      }
-
-
-      const quantity =
-        Number(
-          quantityRaw
-        );
-
-
-      if (
-        !Number.isFinite(
-          quantity
-        ) ||
-        quantity <= 0
-      ) {
-
-        throw new Error(
-          'Quantity for "' +
-          itemName +
-          '" must be greater than zero.'
-        );
-
-      }
-
-
-      const key =
-        normalizeValue(
-          itemName
-        ) +
-        '||' +
-        normalizeValue(
-          partNumber
-        );
-
-
-      const lookupData =
-        lookupMap[key];
-
-
-      if (!lookupData) {
-
-        throw new Error(
-          'The selected Item Name "' +
-          itemName +
-          '" and Part Number "' +
-          partNumber +
-          '" were not found together in "' +
-          CONFIG.SOURCE_SHEET_NAME +
-          '".'
-        );
-
-      }
-
-
-      const boqRaw =
-        String(
-          lookupData.boq || ''
-        ).trim();
-
-
-      if (!boqRaw) {
-
-        throw new Error(
-          'No BOQ value was found for "' +
-          itemName +
-          '" / "' +
-          partNumber +
-          '".'
-        );
-
-      }
-
-
-      const boq =
-        Number(
-          boqRaw.replace(
-            /,/g,
-            ''
-          )
-        );
-
-
-      if (
-        !Number.isFinite(
-          boq
-        ) ||
-        boq < 0
-      ) {
-
-        throw new Error(
-          'The BOQ value for "' +
-          itemName +
-          '" / "' +
-          partNumber +
-          '" is not a valid number.'
-        );
-
-      }
-
-
-      if (
-        quantity > boq
-      ) {
-
-        throw new Error(
-          'Quantity (' +
-          quantity +
-          ') cannot be greater than PO BOQ (' +
-          boq +
-          ') for "' +
-          itemName +
-          '" / "' +
-          partNumber +
-          '".'
-        );
-
-      }
-
-
-      validatedRows.push({
-
-        itemName:
-          itemName,
-
-        partNumber:
-          partNumber,
-
-        scope:
-          lookupData.scope,
-
-        unit:
-          lookupData.unit,
-
-        vendor:
-          lookupData.vendor,
-
-        boq:
-          lookupData.boq,
-
-        quantity:
-          quantity
-
       });
 
-    }
-  );
-
-
-  /*
-   * =======================================================
-   * GET OR CREATE DESTINATION SHEET
-   * =======================================================
-   */
-  let sheet =
-    spreadsheet.getSheetByName(
-      CONFIG.SUBMITTALS_SHEET_NAME
-    );
-
-
-  if (!sheet) {
-
-    sheet =
-      spreadsheet.insertSheet(
-        CONFIG.SUBMITTALS_SHEET_NAME
-      );
-
-  }
-
-
-  ensureSubmittalsHeaders(
-    sheet
-  );
-
-
-  /*
-   * =======================================================
-   * LOCK AND WRITE ALL ROWS TOGETHER
-   * =======================================================
-   */
-  const lock =
-    LockService.getScriptLock();
-
-
-  lock.waitLock(
-    10000
-  );
-
-
-  try {
-
-    const timestamp =
-      new Date();
-
-
-    /*
-     * One frontend Save action receives ONE Submittal Code.
-     * All rows in this action use exactly the same code.
-     */
-    const submittalCode =
-      getNextSubmittalCode(
-        sheet,
-        type
-      );
-
-
-    const outputRows =
-      validatedRows.map(
-        function(row) {
-
-          return [
-
-            timestamp,
-
-            type,
-
-            row.itemName,
-
-            row.partNumber,
-
-            row.scope,
-
-            row.unit,
-
-            row.vendor,
-
-            row.boq,
-
-            row.quantity,
-
-            submittalCode
-
-          ];
-
+      trigger.addEventListener('keydown', function(event) {
+        if ((event.key === 'Enter' || event.key === ' ') && !trigger.classList.contains('disabled')) {
+          event.preventDefault();
+          trigger.click();
         }
-      );
+      });
 
+      search.addEventListener('input', renderItemOptions);
+      selectAll.addEventListener('click', function() {
+        const visibleItems = getFilteredItemNames();
+        const allVisibleSelected = visibleItems.length > 0 && visibleItems.every(function(item) { return selectedItemNames.has(item); });
+        visibleItems.forEach(function(item) {
+          if (allVisibleSelected) selectedItemNames.delete(item);
+          else selectedItemNames.add(item);
+        });
+        renderItemOptions();
+        updateSelectedItemsUI();
+      });
 
-    const startRow =
-      Math.max(
-        sheet.getLastRow() + 1,
-        2
-      );
+      clearAll.addEventListener('click', function() {
+        selectedItemNames.clear();
+        renderItemOptions();
+        updateSelectedItemsUI();
+        hideError();
+        hideSuccess();
+      });
 
+      document.addEventListener('click', function(event) {
+        if (!document.getElementById('itemMultiSelect').contains(event.target)) closeItemPanel();
+      });
+    }
 
-    sheet
-      .getRange(
-        startRow,
-        1,
-        outputRows.length,
-        10
-      )
-      .setValues(
-        outputRows
-      );
+    function enableItemSelector(enabled) {
+      const trigger = document.getElementById('itemNameTrigger');
+      trigger.classList.toggle('disabled', !enabled);
+      trigger.setAttribute('aria-disabled', String(!enabled));
+      if (!enabled) {
+        selectedItemNames.clear();
+        closeItemPanel();
+        updateSelectedItemsUI();
+      } else if (databaseData.itemNames.length) {
+        renderItemOptions();
+      }
+      updateSaveButtonState();
+    }
 
+    function renderItemOptions() {
+      const list = document.getElementById('itemOptionsList');
+      const items = getFilteredItemNames();
+      list.innerHTML = '';
+      if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-options';
+        empty.textContent = 'No matching Item Names.';
+        list.appendChild(empty);
+      } else {
+        items.forEach(function(itemName) {
+          const label = document.createElement('label');
+          label.className = 'filter-option';
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = selectedItemNames.has(itemName);
+          checkbox.addEventListener('change', function() {
+            if (checkbox.checked) selectedItemNames.add(itemName);
+            else selectedItemNames.delete(itemName);
+            updateSelectedItemsUI();
+            renderItemOptions();
+          });
+          const text = document.createElement('span');
+          text.textContent = itemName;
+          label.appendChild(checkbox);
+          label.appendChild(text);
+          list.appendChild(label);
+        });
+      }
+      const allVisibleSelected = items.length > 0 && items.every(function(item) { return selectedItemNames.has(item); });
+      document.getElementById('selectAllButton').textContent = allVisibleSelected ? 'Clear All' : 'Select All';
+    }
 
-    /*
-     * Timestamp formatting for all inserted rows.
-     */
-    sheet
-      .getRange(
-        startRow,
-        1,
-        outputRows.length,
-        1
-      )
-      .setNumberFormat(
-        'yyyy-mm-dd hh:mm:ss'
-      );
+    function getFilteredItemNames() {
+      const query = document.getElementById('itemSearch').value.trim().toLowerCase();
+      return (databaseData.itemNames || []).filter(function(item) {
+        return !query || item.toLowerCase().includes(query);
+      });
+    }
 
+    function closeItemPanel() {
+      document.getElementById('itemNamePanel').classList.remove('open');
+      document.getElementById('itemNameTrigger').classList.remove('open');
+      document.getElementById('itemNameTrigger').setAttribute('aria-expanded', 'false');
+    }
 
-    return {
+    function updateSelectedItemsUI() {
+      const selected = Array.from(selectedItemNames);
+      const display = document.getElementById('itemNameDisplay');
+      if (!selected.length) display.textContent = 'Select Item Name';
+      else if (selected.length === 1) display.textContent = selected[0];
+      else display.textContent = selected.length + ' Item Names selected';
+      document.getElementById('selectionCount').textContent = selected.length + (selected.length === 1 ? ' item selected' : ' items selected');
+      const chipList = document.getElementById('selectedChipList');
+      chipList.innerHTML = '';
+      selected.forEach(function(itemName) {
+        const chip = document.createElement('span');
+        chip.className = 'selected-chip';
+        chip.textContent = itemName;
+        chipList.appendChild(chip);
+      });
+      rebuildPartSelectionRows();
+      updateQuantityTable();
+      updateSaveButtonState();
+    }
 
-      success: true,
+    function rebuildPartSelectionRows() {
+      const container = document.getElementById('partSelectionList');
+      const selected = Array.from(selectedItemNames);
+      container.innerHTML = '';
+      if (!selected.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-part-state';
+        empty.textContent = 'Select one or more Item Names to load their Part Numbers.';
+        container.appendChild(empty);
+        return;
+      }
 
-      message:
-        outputRows.length +
-        ' submittal row(s) saved successfully.',
+      selected.forEach(function(itemName) {
+        if (!rowState[itemName]) rowState[itemName] = { partNumber: '', boq: null, quantity: '', loading: false, requestId: 0 };
+        const state = rowState[itemName];
+        const row = document.createElement('div');
+        row.className = 'part-selection-row';
 
-      count:
-        outputRows.length,
+        const itemLabel = document.createElement('div');
+        itemLabel.className = 'part-item-name';
+        itemLabel.textContent = itemName;
 
-      data:
-        validatedRows.map(
-          function(row) {
+        const select = document.createElement('select');
+        select.className = 'part-select';
+        select.dataset.itemName = itemName;
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.textContent = state.loading ? 'Loading Part Numbers...' : 'Select Part Number';
+        select.appendChild(placeholder);
+        const partNumbers = databaseData.dependentPartNumbers[itemName] || [];
+        partNumbers.forEach(function(partNumber) {
+          const option = document.createElement('option');
+          option.value = partNumber;
+          option.textContent = partNumber;
+          if (state.partNumber === partNumber) option.selected = true;
+          select.appendChild(option);
+        });
+        select.disabled = state.loading || !partNumbers.length;
+        select.addEventListener('change', function() { handlePartNumberChange(itemName, select.value); });
+        row.appendChild(itemLabel);
+        row.appendChild(select);
+        container.appendChild(row);
+      });
+    }
 
-            return {
+    function handlePartNumberChange(itemName, partNumber) {
+      const state = rowState[itemName] || { partNumber: '', boq: null, quantity: '', loading: false, requestId: 0 };
+      state.partNumber = partNumber;
+      state.boq = null;
+      state.quantity = '';
+      state.loading = false;
+      state.requestId = ++detailsRequestSequence;
+      rowState[itemName] = state;
+      hideError();
+      hideSuccess();
+      updateQuantityTable();
+      updateSaveButtonState();
+      if (partNumber) loadPartDetails(itemName, partNumber, state.requestId);
+    }
 
-              timestamp:
-                timestamp.toISOString(),
-
-              type:
-                type,
-
-              submittalCode:
-                submittalCode,
-
-              itemName:
-                row.itemName,
-
-              partNumber:
-                row.partNumber,
-
-              scope:
-                row.scope,
-
-              unit:
-                row.unit,
-
-              vendor:
-                row.vendor,
-
-              boq:
-                row.boq,
-
-              quantity:
-                row.quantity
-
-            };
-
+    function loadPartDetails(itemName, partNumber, requestId) {
+      const callbackName = 'handlePartDetails_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+      window[callbackName] = function(response) {
+        try {
+          const state = rowState[itemName];
+          if (!state || state.requestId !== requestId || !selectedItemNames.has(itemName) || state.partNumber !== partNumber) return;
+          if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to load Part Number details.');
+          state.boq = response.data.boq;
+          updateQuantityTable();
+          updateSaveButtonState();
+        } catch (error) {
+          const state = rowState[itemName];
+          if (state && state.requestId === requestId) {
+            state.boq = null;
+            updateQuantityTable();
+            showError(error && error.message ? error.message : 'Unable to load Part Number details.');
           }
-        )
-
-    };
-
-
-  } finally {
-
-    lock.releaseLock();
-
-  }
-
-}
-
-
-/**
- * =========================================================
- * UNDO SUBMITTAL
- *
- * Deletes every row in "Submittals QS" whose "Submittal Code"
- * column matches the given code. One Save action (single or
- * multiple rows) always shares exactly one Submittal Code, so
- * this removes precisely the rows written by that action.
- * =========================================================
- */
-function undoSubmittal(e) {
-
-  const submittalCode =
-    e &&
-    e.parameter &&
-    e.parameter.submittalCode
-      ? String(
-          e.parameter.submittalCode
-        ).trim()
-      : '';
-
-
-  if (!submittalCode) {
-
-    throw new Error(
-      'Submittal Code is required to undo.'
-    );
-
-  }
-
-
-  const spreadsheet =
-    SpreadsheetApp.openById(
-      CONFIG.SPREADSHEET_ID
-    );
-
-
-  const sheet =
-    spreadsheet.getSheetByName(
-      CONFIG.SUBMITTALS_SHEET_NAME
-    );
-
-
-  if (!sheet) {
-
-    throw new Error(
-      'Sheet "' +
-      CONFIG.SUBMITTALS_SHEET_NAME +
-      '" was not found.'
-    );
-
-  }
-
-
-  const lock =
-    LockService.getScriptLock();
-
-
-  lock.waitLock(
-    10000
-  );
-
-
-  try {
-
-    const lastRow =
-      sheet.getLastRow();
-
-
-    const lastColumn =
-      sheet.getLastColumn();
-
-
-    if (
-      lastRow < 2 ||
-      lastColumn === 0
-    ) {
-
-      throw new Error(
-        'No submittal rows were found for Submittal Code "' +
-        submittalCode +
-        '".'
-      );
-
-    }
-
-
-    const headerRowValues =
-      sheet
-        .getRange(
-          1,
-          1,
-          1,
-          lastColumn
-        )
-        .getDisplayValues()[0];
-
-
-    const submittalCodeColumn =
-      findHeaderColumn(
-        headerRowValues,
-        [
-          'Submittal Code'
-        ]
-      );
-
-
-    if (!submittalCodeColumn) {
-
-      throw new Error(
-        'Column "Submittal Code" was not found in "' +
-        CONFIG.SUBMITTALS_SHEET_NAME +
-        '".'
-      );
-
-    }
-
-
-    const codeValues =
-      sheet
-        .getRange(
-          2,
-          submittalCodeColumn,
-          lastRow - 1,
-          1
-        )
-        .getDisplayValues();
-
-
-    const normalizedTarget =
-      normalizeValue(
-        submittalCode
-      );
-
-
-    const rowsToDelete = [];
-
-
-    codeValues.forEach(
-      function(row, index) {
-
-        const existingCode =
-          String(
-            row[0] || ''
-          ).trim();
-
-
-        if (
-          normalizeValue(
-            existingCode
-          ) ===
-          normalizedTarget
-        ) {
-
-          /*
-           * +2: row 1 is the header, and codeValues is
-           * 0-indexed starting at sheet row 2.
-           */
-          rowsToDelete.push(
-            index + 2
-          );
-
+        } finally {
+          cleanupJsonp(script, callbackName);
         }
-
-      }
-    );
-
-
-    if (!rowsToDelete.length) {
-
-      throw new Error(
-        'No submittal rows were found for Submittal Code "' +
-        submittalCode +
-        '". They may have already been undone.'
-      );
-
+      };
+      const script = document.createElement('script');
+      script.src = API_URL + '?action=getPartDetails&prefix=' + encodeURIComponent(callbackName) + '&itemName=' + encodeURIComponent(itemName) + '&partNumber=' + encodeURIComponent(partNumber);
+      script.onerror = function() {
+        showError('Unable to connect to the Google Apps Script API.');
+        cleanupJsonp(script, callbackName);
+      };
+      document.body.appendChild(script);
     }
 
-
-    /*
-     * Delete from the bottom row up, so deleting one row
-     * never shifts the sheet-row number of another row still
-     * waiting to be deleted.
-     */
-    rowsToDelete
-      .sort(
-        function(a, b) {
-          return b - a;
-        }
-      )
-      .forEach(
-        function(rowNumber) {
-
-          sheet.deleteRow(
-            rowNumber
-          );
-
-        }
-      );
-
-
-    return {
-
-      success: true,
-
-      message:
-        rowsToDelete.length +
-        ' submittal row(s) removed for Submittal Code "' +
-        submittalCode +
-        '".',
-
-      count:
-        rowsToDelete.length,
-
-      submittalCode:
-        submittalCode
-
-    };
-
-
-  } finally {
-
-    lock.releaseLock();
-
-  }
-
-}
-
-
-/**
- * =========================================================
- * LOOKUP PART NUMBER
- *
- * Searches Items_Profiles by Part Number and, when supplied,
- * Item Name.
- *
- * Returns:
- *
- * found
- * itemName
- * scope
- * unit
- * vendor
- * boq
- * =========================================================
- */
-function lookupPartNumber(
-  partNumber,
-  itemName
-) {
-
-  const spreadsheet =
-    SpreadsheetApp.openById(
-      CONFIG.SPREADSHEET_ID
-    );
-
-
-  const sheet =
-    spreadsheet.getSheetByName(
-      CONFIG.SOURCE_SHEET_NAME
-    );
-
-
-  if (!sheet) {
-
-    throw new Error(
-      'Sheet "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '" was not found.'
-    );
-
-  }
-
-
-  const lastRow =
-    sheet.getLastRow();
-
-
-  const lastColumn =
-    sheet.getLastColumn();
-
-
-  if (
-    lastRow <=
-    CONFIG.HEADER_ROW ||
-    lastColumn === 0
-  ) {
-
-    return {
-
-      found: false,
-
-      itemName: '',
-
-      scope: '',
-
-      unit: '',
-
-      vendor: '',
-
-      boq: ''
-
-    };
-
-  }
-
-
-  /*
-   * Read headers.
-   */
-  const headers =
-    sheet
-      .getRange(
-        CONFIG.HEADER_ROW,
-        1,
-        1,
-        lastColumn
-      )
-      .getDisplayValues()[0];
-
-
-  /*
-   * Locate columns dynamically.
-   */
-
-  const partNumberColumn =
-    findHeaderColumn(
-      headers,
-      [
-        'Part Number',
-        'PartNumber',
-        'Part No',
-        'Part No.',
-        'PN'
-      ]
-    );
-
-
-  const itemNameColumn =
-    findHeaderColumn(
-      headers,
-      [
-        'Item Name',
-        'ItemName',
-        'Item'
-      ]
-    );
-
-
-  const scopeColumn =
-    findHeaderColumn(
-      headers,
-      [
-        'Scope'
-      ]
-    );
-
-
-  const unitColumn =
-    findHeaderColumn(
-      headers,
-      [
-        'Unit',
-        'Units'
-      ]
-    );
-
-
-  /*
-   * Vendor can be named:
-   *
-   * Vendor
-   * Supplier
-   */
-  const vendorColumn =
-    findHeaderColumn(
-      headers,
-      [
-        'Vendor',
-        'Supplier'
-      ]
-    );
-
-
-  /*
-   * BOQ can be named:
-   *
-   * BOQ
-   * Boq
-   * BOQ Number
-   * BOQ No
-   * BOQ No.
-   */
-  const boqColumn =
-    findHeaderColumn(
-      headers,
-      [
-        'BOQ',
-        'Boq',
-        'BOQ Number',
-        'BOQ No',
-        'BOQ No.'
-      ]
-    );
-
-
-  if (!partNumberColumn) {
-
-    throw new Error(
-      'Column "Part Number" was not found in "' +
-      CONFIG.SOURCE_SHEET_NAME +
-      '".'
-    );
-
-  }
-
-
-  /*
-   * Read all data.
-   */
-  const numberOfRows =
-    lastRow -
-    CONFIG.HEADER_ROW;
-
-
-  const values =
-    sheet
-      .getRange(
-        CONFIG.HEADER_ROW + 1,
-        1,
-        numberOfRows,
-        lastColumn
-      )
-      .getDisplayValues();
-
-
-  /*
-   * Normalize requested Part Number.
-   */
-  const requestedPartNumber =
-    normalizeValue(
-      partNumber
-    );
-
-
-  const requestedItemName =
-    normalizeValue(
-      itemName || ''
-    );
-
-
-  /*
-   * Search row by row.
-   */
-  for (
-    let i = 0;
-    i < values.length;
-    i++
-  ) {
-
-    const row =
-      values[i];
-
-
-    const currentPartNumber =
-      normalizeValue(
-        row[
-          partNumberColumn - 1
-        ]
-      );
-
-
-    if (
-      currentPartNumber !==
-      requestedPartNumber
-    ) {
-
-      continue;
-
-    }
-
-
-    /*
-     * If Item Name was supplied, it must match too.
-     */
-    const currentItemName =
-      itemNameColumn
-        ? normalizeValue(
-            row[
-              itemNameColumn - 1
-            ]
-          )
-        : '';
-
-
-    if (
-      requestedItemName &&
-      currentItemName !==
-      requestedItemName
-    ) {
-
-      continue;
-
-    }
-
-
-    /*
-     * Found.
-     */
-
-    const itemName =
-      itemNameColumn
-        ? String(
-            row[
-              itemNameColumn - 1
-            ]
-          ).trim()
-        : '';
-
-
-    const scope =
-      scopeColumn
-        ? String(
-            row[
-              scopeColumn - 1
-            ]
-          ).trim()
-        : '';
-
-
-    const unit =
-      unitColumn
-        ? String(
-            row[
-              unitColumn - 1
-            ]
-          ).trim()
-        : '';
-
-
-    const vendor =
-      vendorColumn
-        ? String(
-            row[
-              vendorColumn - 1
-            ]
-          ).trim()
-        : '';
-
-
-    const boq =
-      boqColumn
-        ? String(
-            row[
-              boqColumn - 1
-            ]
-          ).trim()
-        : '';
-
-
-    return {
-
-      found: true,
-
-      itemName:
-        itemName,
-
-      scope:
-        scope,
-
-      unit:
-        unit,
-
-      vendor:
-        vendor,
-
-      boq:
-        boq
-
-    };
-
-  }
-
-
-  /*
-   * Part Number not found.
-   */
-
-  return {
-
-    found: false,
-
-    itemName: '',
-
-    scope: '',
-
-    unit: '',
-
-    vendor: '',
-
-    boq: ''
-
-  };
-
-}
-
-
-/**
- * =========================================================
- * GET NEXT SUBMITTAL CODE
- *
- * "Submittal Code" is now the LAST column. Its position is
- * located dynamically via the header row, same pattern as
- * every other column lookup in this file.
- * =========================================================
- */
-function getNextSubmittalCode(
-  sheet,
-  type
-) {
-
-  const normalizedType =
-    String(
-      type || ''
-    ).trim();
-
-
-  if (!normalizedType) {
-
-    throw new Error(
-      'Submittal Type is required to generate Submittal Code.'
-    );
-
-  }
-
-
-  const prefix =
-    'PCP-' +
-    normalizedType +
-    '-';
-
-
-  const lastRow =
-    sheet.getLastRow();
-
-
-  const lastColumn =
-    sheet.getLastColumn();
-
-
-  if (
-    lastRow < 2 ||
-    lastColumn === 0
-  ) {
-
-    return prefix +
-      '01';
-
-  }
-
-
-  const headerRowValues =
-    sheet
-      .getRange(
-        1,
-        1,
-        1,
-        lastColumn
-      )
-      .getDisplayValues()[0];
-
-
-  const submittalCodeColumn =
-    findHeaderColumn(
-      headerRowValues,
-      [
-        'Submittal Code'
-      ]
-    );
-
-
-  if (!submittalCodeColumn) {
-
-    return prefix +
-      '01';
-
-  }
-
-
-  const codeValues =
-    sheet
-      .getRange(
-        2,
-        submittalCodeColumn,
-        lastRow - 1,
-        1
-      )
-      .getDisplayValues();
-
-
-  let highestSerial = 0;
-
-
-  codeValues.forEach(
-    function(row) {
-
-      const existingCode =
-        String(
-          row[0] || ''
-        ).trim();
-
-
-      if (
-        existingCode.indexOf(
-          prefix
-        ) !== 0
-      ) {
-
+    function updateQuantityTable() {
+      const body = document.getElementById('quantityTableBody');
+      const selected = Array.from(selectedItemNames);
+      body.innerHTML = '';
+      if (!selected.length) {
+        body.innerHTML = '<tr><td colspan="4" class="muted" style="text-align:center;">Select Item Names and Part Numbers to build the table.</td></tr>';
         return;
-
       }
 
+      selected.forEach(function(itemName) {
+        const state = rowState[itemName] || { partNumber: '', boq: null, quantity: '', loading: false };
+        const tr = document.createElement('tr');
 
-      const serialText =
-        existingCode.substring(
-          prefix.length
-        );
+        const itemTd = document.createElement('td');
+        itemTd.className = 'item-cell';
+        itemTd.textContent = itemName;
 
+        const partTd = document.createElement('td');
+        partTd.textContent = state.partNumber || '—';
+        if (!state.partNumber) partTd.className = 'muted';
 
-      if (
-        !/^\d+$/.test(
-          serialText
-        )
-      ) {
+        const boqTd = document.createElement('td');
+        if (state.boq !== null && state.boq !== undefined && String(state.boq).trim() !== '') boqTd.textContent = String(state.boq);
+        else if (state.partNumber) { boqTd.textContent = 'Loading...'; boqTd.className = 'muted'; }
+        else { boqTd.textContent = '—'; boqTd.className = 'muted'; }
 
-        return;
-
-      }
-
-
-      const serial =
-        Number(
-          serialText
-        );
-
-
-      if (
-        Number.isFinite(
-          serial
-        ) &&
-        serial > highestSerial
-      ) {
-
-        highestSerial =
-          serial;
-
-      }
-
-    }
-  );
-
-
-  return prefix +
-    String(
-      highestSerial + 1
-    ).padStart(
-      2,
-      '0'
-    );
-
-}
-
-
-/**
- * =========================================================
- * ENSURE SUBMITTALS HEADERS
- *
- * Target column order (fixed):
- *
- * Timestamp | Type | Item Name | Part Number | Scope |
- * Unit | Vendor | BOQ | Quantity | Submittal Code
- *
- * "Submittal Code" is the LAST column.
- *
- * If the sheet already has different headers (an older
- * layout, e.g. Submittal Code as column C, or no Submittal
- * Code column at all), every existing row is remapped into
- * the new column order by MATCHING HEADER NAME, so no data
- * is lost or shifted into the wrong column.
- * =========================================================
- */
-function ensureSubmittalsHeaders(
-  sheet
-) {
-
-  const headers = [
-
-    'Timestamp',
-
-    'Type',
-
-    'Item Name',
-
-    'Part Number',
-
-    'Scope',
-
-    'Unit',
-
-    'Vendor',
-
-    'BOQ',
-
-    'Quantity',
-
-    'Submittal Code'
-
-  ];
-
-
-  const lastRow =
-    sheet.getLastRow();
-
-
-  const lastColumn =
-    sheet.getLastColumn();
-
-
-  /*
-   * Sheet is completely empty: just write the headers.
-   */
-  if (
-    lastRow === 0 ||
-    lastColumn === 0
-  ) {
-
-    sheet
-      .getRange(
-        1,
-        1,
-        1,
-        headers.length
-      )
-      .setValues([
-        headers
-      ]);
-
-
-    formatSubmittalsHeader(
-      sheet
-    );
-
-
-    return;
-
-  }
-
-
-  /*
-   * Read existing header row as-is.
-   */
-  const existingHeaders =
-    sheet
-      .getRange(
-        1,
-        1,
-        1,
-        lastColumn
-      )
-      .getDisplayValues()[0]
-      .map(
-        function(header) {
-
-          return String(
-            header || ''
-          ).trim();
-
+        const qtyTd = document.createElement('td');
+        const qtyInput = document.createElement('input');
+        qtyInput.type = 'text';
+        qtyInput.className = 'quantity-input';
+        qtyInput.inputMode = 'decimal';
+        qtyInput.autocomplete = 'off';
+        qtyInput.placeholder = 'Enter quantity';
+        qtyInput.value = state.quantity || '';
+        qtyInput.disabled = !(state.partNumber && state.boq !== null && isValidBoq(state.boq));
+        qtyInput.addEventListener('input', function() {
+          sanitizeQuantityInput(qtyInput);
+          state.quantity = qtyInput.value;
+          validateRowQuantity(itemName, qtyInput, true);
+          updateSaveButtonState();
+        });
+        qtyTd.appendChild(qtyInput);
+        if (state.boq !== null && state.boq !== undefined && isValidBoq(state.boq)) {
+          const hint = document.createElement('span');
+          hint.className = 'quantity-hint';
+          hint.textContent = 'Maximum: ' + formatNumber(Number(String(state.boq).replace(/,/g, '')));
+          qtyTd.appendChild(hint);
         }
-      );
 
-
-  /*
-   * Check whether the headers already match the target
-   * order exactly.
-   */
-  let headersAreCorrect =
-    existingHeaders.length ===
-    headers.length;
-
-
-  if (
-    headersAreCorrect
-  ) {
-
-    for (
-      let i = 0;
-      i < headers.length;
-      i++
-    ) {
-
-      if (
-        existingHeaders[i] !==
-        headers[i]
-      ) {
-
-        headersAreCorrect =
-          false;
-
-        break;
-
-      }
-
+        tr.appendChild(itemTd);
+        tr.appendChild(partTd);
+        tr.appendChild(boqTd);
+        tr.appendChild(qtyTd);
+        body.appendChild(tr);
+      });
     }
 
-  }
+    function sanitizeQuantityInput(input) {
+      let value = input.value.replace(/[^0-9.]/g, '');
+      const dot = value.indexOf('.');
+      if (dot !== -1) value = value.substring(0, dot + 1) + value.substring(dot + 1).replace(/\./g, '');
+      input.value = value;
+    }
 
+    function validateRowQuantity(itemName, input, showInline) {
+      const state = rowState[itemName];
+      input.classList.remove('invalid');
+      const oldError = input.parentElement.querySelector('.quantity-error');
+      if (oldError) oldError.remove();
+      if (!state || !input.value.trim()) return false;
+      if (!/^\d+(\.\d+)?$/.test(input.value.trim())) return false;
+      const quantity = Number(input.value.trim());
+      if (!Number.isFinite(quantity) || quantity <= 0) return false;
+      if (state.boq === null || state.boq === undefined || !isValidBoq(state.boq)) return false;
+      const boq = Number(String(state.boq).replace(/,/g, ''));
+      if (quantity > boq) {
+        input.classList.add('invalid');
+        if (showInline) {
+          const error = document.createElement('span');
+          error.className = 'quantity-error';
+          error.textContent = 'Maximum allowed: ' + formatNumber(boq);
+          input.parentElement.appendChild(error);
+        }
+        return false;
+      }
+      return true;
+    }
 
-  if (
-    headersAreCorrect
-  ) {
+    function isValidBoq(boq) {
+      if (boq === null || boq === undefined || String(boq).trim() === '') return false;
+      const value = Number(String(boq).replace(/,/g, '').trim());
+      return Number.isFinite(value) && value >= 0;
+    }
 
-    return;
+    function setupSaveButton() { document.getElementById('saveButton').addEventListener('click', handleSave); }
 
-  }
+    function handleSave() {
+      hideError();
+      hideSuccess();
+      const type = getSelectedType();
+      if (!type) { showError('Please select one Submittal Type.'); return; }
+      const selected = Array.from(selectedItemNames);
+      if (!selected.length) { showError('Please select at least one Item Name.'); return; }
 
+      const rows = [];
+      for (let i = 0; i < selected.length; i++) {
+        const itemName = selected[i];
+        const state = rowState[itemName];
+        if (!state || !state.partNumber) { showError('Please select a Part Number for Item: ' + itemName + '.'); return; }
+        if (!isValidBoq(state.boq)) { showError('No valid PO BOQ was found for Item: ' + itemName + '.'); return; }
+        if (!state.quantity || !/^\d+(\.\d+)?$/.test(state.quantity)) { showError('Please enter a valid Quantity for Item: ' + itemName + '.'); return; }
+        const quantity = Number(state.quantity);
+        const boq = Number(String(state.boq).replace(/,/g, ''));
+        if (!Number.isFinite(quantity) || quantity <= 0) { showError('Quantity for Item: ' + itemName + ' must be greater than zero.'); return; }
+        if (quantity > boq) { showError('Quantity (' + formatNumber(quantity) + ') cannot be greater than PO BOQ (' + formatNumber(boq) + ') for Item: ' + itemName + '.'); return; }
+        rows.push({ itemName: itemName, partNumber: state.partNumber, quantity: state.quantity });
+      }
+      saveSubmittals(type, rows);
+    }
 
-  /*
-   * ---------------------------------------------------------
-   * Migration required.
-   *
-   * Build a map of: normalized header name -> old column
-   * index (0-based), then rebuild every data row in the new
-   * column order by NAME, not by position.
-   * ---------------------------------------------------------
-   */
+    function saveSubmittals(type, rows) {
+      const button = document.getElementById('saveButton');
+      button.disabled = true;
+      button.textContent = 'Saving...';
+      const callbackName = 'handleSaveResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+      window[callbackName] = function(response) {
+        try {
+          if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to save the submittals.');
+          const submittalCode = (response.data && response.data.length && response.data[0].submittalCode) || '';
+          showResultModal(type, rows.length, response.message || (rows.length + ' submittal row(s) saved successfully.'));
+          logLastAction(type, rows.length, submittalCode);
+          resetFormAfterSave();
+        } catch (error) {
+          showError(error && error.message ? error.message : 'Unable to save the submittals.');
+        } finally {
+          button.disabled = false;
+          button.textContent = 'Save';
+          cleanupJsonp(script, callbackName);
+        }
+      };
+      const script = document.createElement('script');
+      script.src = API_URL + '?action=saveSubmittals&prefix=' + encodeURIComponent(callbackName) + '&type=' + encodeURIComponent(type) + '&rows=' + encodeURIComponent(JSON.stringify(rows));
+      script.onerror = function() {
+        showError('Unable to connect to the Google Apps Script API.');
+        button.disabled = false;
+        button.textContent = 'Save';
+        cleanupJsonp(script, callbackName);
+      };
+      document.body.appendChild(script);
+    }
 
-  const oldColumnByHeader = {};
+    function getSelectedType() {
+      const checkbox = document.querySelector('.type-checkbox:checked');
+      return checkbox ? checkbox.value : '';
+    }
 
+    function resetFormAfterSave() {
+      document.querySelectorAll('.type-checkbox').forEach(function(checkbox) { checkbox.checked = false; });
+      selectedItemNames.clear();
+      rowState = {};
+      enableItemSelector(false);
+      updateSelectedItemsUI();
+    }
 
-  existingHeaders.forEach(
-    function(header, index) {
+    /* ===================== Last Action Log + Undo ===================== */
+    function setupUndoButton() {
+      document.getElementById('undoButton').addEventListener('click', handleUndo);
+    }
 
-      if (!header) {
+    function logLastAction(type, rowsSaved, submittalCode) {
+      lastAction = { type: type, rowsSaved: rowsSaved, submittalCode: submittalCode, undone: false };
+      renderLastActionLog();
+    }
 
+    function renderLastActionLog() {
+      const log = document.getElementById('lastActionLog');
+      const text = document.getElementById('lastActionText');
+      const undoButton = document.getElementById('undoButton');
+
+      if (!lastAction) { log.hidden = true; return; }
+
+      log.hidden = false;
+
+      if (lastAction.undone) {
+        text.innerHTML = 'Last action undone: <strong>' + lastAction.rowsSaved + '</strong> row(s) (' + escapeHtml(lastAction.type) + (lastAction.submittalCode ? ', ' + escapeHtml(lastAction.submittalCode) : '') + ') were removed.';
+        undoButton.hidden = true;
+      } else {
+        text.innerHTML = 'Last action: saved <strong>' + lastAction.rowsSaved + '</strong> row(s) as <strong>' + escapeHtml(lastAction.submittalCode || '—') + '</strong> (' + escapeHtml(lastAction.type) + ').';
+        undoButton.hidden = false;
+        undoButton.disabled = false;
+        undoButton.classList.remove('done');
+        undoButton.textContent = 'Undo';
+      }
+    }
+
+    function handleUndo() {
+      if (!lastAction || lastAction.undone) return;
+
+      if (!lastAction.submittalCode) {
+        showError('This action cannot be undone (no Submittal Code was returned).');
         return;
-
       }
 
-
-      const key =
-        normalizeValue(
-          header
-        );
-
-
-      /*
-       * Keep the first column matching a given header name.
-       */
-      if (
-        oldColumnByHeader[key] ===
-        undefined
-      ) {
-
-        oldColumnByHeader[key] =
-          index;
-
-      }
-
-    }
-  );
-
-
-  const numberOfDataRows =
-    Math.max(
-      lastRow - 1,
-      0
-    );
-
-
-  let existingData = [];
-
-
-  if (
-    numberOfDataRows > 0
-  ) {
-
-    existingData =
-      sheet
-        .getRange(
-          2,
-          1,
-          numberOfDataRows,
-          lastColumn
-        )
-        .getDisplayValues();
-
-  }
-
-
-  const migratedData =
-    existingData.map(
-      function(row) {
-
-        return headers.map(
-          function(headerName) {
-
-            const oldIndex =
-              oldColumnByHeader[
-                normalizeValue(
-                  headerName
-                )
-              ];
-
-
-            return (
-              oldIndex !== undefined &&
-              row[oldIndex] !== undefined
-            )
-              ? row[oldIndex]
-              : '';
-
-          }
-        );
-
-      }
-    );
-
-
-  /*
-   * Clear everything and rewrite headers + migrated data in
-   * the new, fixed column order.
-   */
-  sheet.clearContents();
-
-
-  sheet
-    .getRange(
-      1,
-      1,
-      1,
-      headers.length
-    )
-    .setValues([
-      headers
-    ]);
-
-
-  if (
-    migratedData.length > 0
-  ) {
-
-    sheet
-      .getRange(
-        2,
-        1,
-        migratedData.length,
-        headers.length
-      )
-      .setValues(
-        migratedData
-      );
-
-
-    /*
-     * Re-apply Timestamp formatting (column A) for the
-     * migrated rows.
-     */
-    sheet
-      .getRange(
-        2,
-        1,
-        migratedData.length,
-        1
-      )
-      .setNumberFormat(
-        'yyyy-mm-dd hh:mm:ss'
-      );
-
-  }
-
-
-  formatSubmittalsHeader(
-    sheet
-  );
-
-}
-
-
-/**
- * =========================================================
- * FORMAT SUBMITTALS HEADER
- *
- * Column order:
- *
- * 1 Timestamp | 2 Type | 3 Item Name | 4 Part Number |
- * 5 Scope | 6 Unit | 7 Vendor | 8 BOQ | 9 Quantity |
- * 10 Submittal Code
- * =========================================================
- */
-function formatSubmittalsHeader(
-  sheet
-) {
-
-  sheet
-    .getRange(
-      1,
-      1,
-      1,
-      10
-    )
-    .setFontWeight(
-      'bold'
-    );
-
-
-  sheet.setFrozenRows(
-    1
-  );
-
-
-  /*
-   * Set reasonable column widths.
-   */
-  sheet.setColumnWidth(
-    1,
-    160
-  );
-
-
-  sheet.setColumnWidth(
-    2,
-    110
-  );
-
-
-  sheet.setColumnWidth(
-    3,
-    200
-  );
-
-
-  sheet.setColumnWidth(
-    4,
-    150
-  );
-
-
-  sheet.setColumnWidth(
-    5,
-    100
-  );
-
-
-  sheet.setColumnWidth(
-    6,
-    90
-  );
-
-
-  sheet.setColumnWidth(
-    7,
-    180
-  );
-
-
-  sheet.setColumnWidth(
-    8,
-    110
-  );
-
-
-  sheet.setColumnWidth(
-    9,
-    110
-  );
-
-
-  sheet.setColumnWidth(
-    10,
-    180
-  );
-
-}
-
-
-/**
- * =========================================================
- * FIND HEADER COLUMN
- *
- * Returns 1-based column number.
- * =========================================================
- */
-function findHeaderColumn(
-  headers,
-  possibleNames
-) {
-
-  const normalizedHeaders =
-    headers.map(
-      function(header) {
-
-        return normalizeHeader(
-          header
-        );
-
-      }
-    );
-
-
-  for (
-    let i = 0;
-    i < possibleNames.length;
-    i++
-  ) {
-
-    const wanted =
-      normalizeHeader(
-        possibleNames[i]
-      );
-
-
-    const index =
-      normalizedHeaders.indexOf(
-        wanted
-      );
-
-
-    if (
-      index !== -1
-    ) {
-
-      return index + 1;
-
+      const undoButton = document.getElementById('undoButton');
+      undoButton.disabled = true;
+      undoButton.textContent = 'Undoing...';
+      hideError();
+      hideSuccess();
+
+      const callbackName = 'handleUndoResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+      window[callbackName] = function(response) {
+        try {
+          if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to undo the last action.');
+          lastAction.undone = true;
+          renderLastActionLog();
+        } catch (error) {
+          undoButton.disabled = false;
+          undoButton.textContent = 'Undo';
+          showError(error && error.message ? error.message : 'Unable to undo the last action.');
+        } finally {
+          cleanupJsonp(script, callbackName);
+        }
+      };
+      const script = document.createElement('script');
+      script.src = API_URL + '?action=undoSubmittal&prefix=' + encodeURIComponent(callbackName) + '&submittalCode=' + encodeURIComponent(lastAction.submittalCode);
+      script.onerror = function() {
+        undoButton.disabled = false;
+        undoButton.textContent = 'Undo';
+        showError('Unable to connect to the Google Apps Script API.');
+        cleanupJsonp(script, callbackName);
+      };
+      document.body.appendChild(script);
     }
 
-  }
+    function escapeHtml(value) {
+      return String(value || '').replace(/[&<>"']/g, function(char) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char];
+      });
+    }
+    /* ===================================================================== */
 
+    /* ===================== Result Modal (Pop-up) ===================== */
+    function setupResultModal() {
+      const overlay = document.getElementById('resultModalOverlay');
+      document.getElementById('modalCloseButton').addEventListener('click', closeResultModal);
+      document.getElementById('modalOkButton').addEventListener('click', closeResultModal);
+      overlay.addEventListener('click', function(event) {
+        if (event.target === overlay) closeResultModal();
+      });
+      document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape' && overlay.classList.contains('open')) closeResultModal();
+      });
+    }
 
-  return 0;
+    function showResultModal(type, rowsSaved, subtitle) {
+      document.getElementById('modalSubtitle').textContent = subtitle;
+      document.getElementById('modalSelectedType').textContent = type;
+      document.getElementById('modalSelectedCount').textContent = String(rowsSaved);
+      const overlay = document.getElementById('resultModalOverlay');
+      overlay.hidden = false;
+      requestAnimationFrame(function() { overlay.classList.add('open'); });
+    }
 
-}
+    function closeResultModal() {
+      const overlay = document.getElementById('resultModalOverlay');
+      overlay.classList.remove('open');
+      setTimeout(function() { overlay.hidden = true; }, 180);
+    }
+    /* =================================================================== */
 
+    function loadDatabaseData() {
+      const callbackName = 'handleDatabaseResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+      window[callbackName] = function(response) {
+        try {
+          if (!response || !response.success) throw new Error(response && response.error ? response.error : 'The API returned an error.');
+          databaseData = response.data || { itemNames: [], dependentPartNumbers: {} };
+          populateItemData();
+          completeProgress();
+          document.getElementById('loadingText').textContent = 'Database loaded successfully.';
+        } catch (error) {
+          completeProgress();
+          showError(error && error.message ? error.message : 'Unable to load database data.');
+        } finally {
+          setTimeout(function() { showLoading(false); }, 400);
+          cleanupJsonp(script, callbackName);
+        }
+      };
+      const script = document.createElement('script');
+      script.src = API_URL + '?action=getDatabaseData&prefix=' + encodeURIComponent(callbackName);
+      script.onerror = function() {
+        if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+        showLoading(false);
+        showError('Unable to connect to the Google Apps Script API.');
+        cleanupJsonp(script, callbackName);
+      };
+      document.body.appendChild(script);
+    }
 
-/**
- * =========================================================
- * NORMALIZE HEADER
- * =========================================================
- */
-function normalizeHeader(
-  value
-) {
+    function populateItemData() {
+      document.getElementById('itemNameDisplay').textContent = 'Select Item Name';
+      document.getElementById('selectionCount').textContent = '0 items selected';
+      renderItemOptions();
+      enableItemSelector(false);
+    }
 
-  return String(
-    value || ''
-  )
-    .trim()
-    .toLowerCase()
-    .replace(
-      /\s+/g,
-      ' '
-    );
+    function updateSaveButtonState() {
+      const button = document.getElementById('saveButton');
+      const type = !!getSelectedType();
+      const items = Array.from(selectedItemNames);
+      const allReady = items.length > 0 && items.every(function(itemName) {
+        const state = rowState[itemName];
+        if (!state || !state.partNumber || !isValidBoq(state.boq) || !state.quantity) return false;
+        const quantity = Number(state.quantity);
+        const boq = Number(String(state.boq).replace(/,/g, ''));
+        return /^\d+(\.\d+)?$/.test(state.quantity) && Number.isFinite(quantity) && quantity > 0 && quantity <= boq;
+      });
+      button.disabled = !(type && allReady);
+    }
 
-}
+    function startProgress() {
+      progressValue = 0;
+      updateProgress(progressValue);
+      if (progressTimer) clearInterval(progressTimer);
+      progressTimer = setInterval(function() {
+        if (progressValue < 60) progressValue += 2;
+        else if (progressValue < 80) progressValue += 1;
+        else if (progressValue < 90) progressValue += .5;
+        if (progressValue > 90) progressValue = 90;
+        updateProgress(progressValue);
+      }, 150);
+    }
 
+    function completeProgress() {
+      if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+      progressValue = 100;
+      updateProgress(progressValue);
+    }
 
-/**
- * =========================================================
- * NORMALIZE VALUE
- *
- * Used for Part Number comparison.
- * =========================================================
- */
-function normalizeValue(
-  value
-) {
+    function updateProgress(value) {
+      const percentage = Math.round(value);
+      document.getElementById('progressBar').style.width = percentage + '%';
+      document.getElementById('loadingPercentage').textContent = percentage + '%';
+    }
 
-  return String(
-    value || ''
-  )
-    .trim()
-    .toLowerCase();
+    function showLoading(show) { document.getElementById('loading').hidden = !show; }
+    function showError(message) { const el = document.getElementById('errorMessage'); el.textContent = message; el.hidden = false; }
+    function hideError() { const el = document.getElementById('errorMessage'); el.textContent = ''; el.hidden = true; }
+    function showSuccess(message) { const el = document.getElementById('successMessage'); el.textContent = message; el.hidden = false; }
+    function hideSuccess() { const el = document.getElementById('successMessage'); el.textContent = ''; el.hidden = true; }
+    function formatNumber(number) { return Number(number).toLocaleString('en-US', { maximumFractionDigits: 10 }); }
 
-}
+    function cleanupJsonp(script, callbackName) {
+      if (script && script.parentNode) script.parentNode.removeChild(script);
+      try { delete window[callbackName]; } catch (error) { window[callbackName] = undefined; }
+    }
+  </script>
+</body>
+</html>
