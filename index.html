@@ -18,7 +18,7 @@
     }
     .page { min-height: 100vh; display: flex; justify-content: center; align-items: flex-start; padding: 50px 20px; }
     .card {
-      width: 100%; max-width: 980px;
+      width: 100%; max-width: 1220px;
       background: oklch(0.95 0.012 55);
       border-radius: 32px;
       padding: 46px;
@@ -101,20 +101,30 @@
     .empty-part-state { padding: 20px; border-radius: 16px; color: oklch(0.55 0.012 50); font-size: 14px; text-align: center; background: oklch(0.95 0.012 55); box-shadow: inset 4px 4px 10px oklch(0.72 0.02 50 / .3), inset -4px -4px 10px oklch(1 0 0 / .7); }
     .table-section { margin-top: 10px; margin-bottom: 30px; }
     .table-wrap { overflow-x: auto; border-radius: 20px; background: oklch(0.95 0.012 55); box-shadow: 8px 8px 18px oklch(0.72 0.02 50 / .38), -8px -8px 18px oklch(1 0 0 / .85); }
-    .quantity-table { width: 100%; border-collapse: collapse; min-width: 960px; }
-    .quantity-table th { padding: 15px 18px; text-align: left; color: oklch(0.42 0.13 18); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
-    .quantity-table td { padding: 14px 18px; vertical-align: middle; font-size: 14px; color: oklch(0.32 0.015 45); border-top: 1px solid oklch(0.88 0.015 50); }
+    .quantity-table { width: 100%; min-width: 720px; border-collapse: collapse; table-layout: fixed; }
+    .quantity-table th:nth-child(1), .quantity-table td:nth-child(1) { width: 22%; }
+    .quantity-table th:nth-child(2), .quantity-table td:nth-child(2) { width: 16%; }
+    .quantity-table th:nth-child(3), .quantity-table td:nth-child(3) { width: 10%; }
+    .quantity-table th:nth-child(4), .quantity-table td:nth-child(4) { width: 16%; }
+    .quantity-table th:nth-child(5), .quantity-table td:nth-child(5) { width: 12%; }
+    .quantity-table th:nth-child(6), .quantity-table td:nth-child(6) { width: 24%; }
+    .quantity-table th { padding: 15px 16px; text-align: center; color: oklch(0.42 0.13 18); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; }
+    .quantity-table td { padding: 14px 16px; vertical-align: middle; font-size: 14px; color: oklch(0.32 0.015 45); border-top: 1px solid oklch(0.88 0.015 50); text-align: center; word-break: break-word; }
     .quantity-table tr:first-child td { border-top: none; }
     .quantity-table .item-cell { font-weight: 700; color: oklch(0.24 0.02 40); }
     .quantity-table .muted { color: oklch(0.55 0.012 50); }
     .quantity-table .negative-available { color: oklch(0.5 0.19 25); font-weight: 700; }
+    .quantity-table td.qty-cell-active { background: oklch(0.93 0.05 85); }
+    .quantity-table td.qty-cell-active .quantity-input { background: oklch(0.99 0.02 85); box-shadow: inset 3px 3px 8px oklch(0.72 0.05 70 / .3), inset -3px -3px 8px oklch(1 0 0 / .9), 0 0 0 2px oklch(0.55 0.12 70 / .4); }
+    .quantity-table td.qty-cell-active .quantity-input:focus { box-shadow: inset 3px 3px 8px oklch(0.42 0.13 18 / .28), inset -3px -3px 8px oklch(1 0 0 / .85), 0 0 0 2px oklch(0.42 0.13 18 / .45); }
+    .quantity-table td.qty-cell-active .quantity-input.invalid { background: oklch(0.99 0.02 85); box-shadow: inset 3px 3px 8px oklch(0.55 0.19 25 / .35), inset -3px -3px 8px oklch(1 0 0 / .6), 0 0 0 3px oklch(0.55 0.19 25 / .5); }
     .quantity-input { width: 150px; height: 44px; padding: 0 14px; border: none; border-radius: 13px; background: oklch(0.95 0.012 55); box-shadow: inset 3px 3px 8px oklch(0.72 0.02 50 / .35), inset -3px -3px 8px oklch(1 0 0 / .85); color: oklch(0.26 0.02 40); font-size: 14px; font-weight: 700; outline: none; transition: box-shadow .2s ease; }
     .quantity-input:focus { box-shadow: inset 3px 3px 8px oklch(0.42 0.13 18 / .28), inset -3px -3px 8px oklch(1 0 0 / .85); }
     .quantity-input:disabled { color: oklch(0.62 0.01 50); cursor: not-allowed; }
     .quantity-input.invalid { box-shadow: inset 3px 3px 8px oklch(0.55 0.19 25 / .35), inset -3px -3px 8px oklch(1 0 0 / .6), 0 0 0 3px oklch(0.55 0.19 25 / .45); }
     .quantity-hint { display: block; margin-top: 6px; color: oklch(0.55 0.012 50); font-size: 12px; }
     .quantity-error { display: block; margin-top: 6px; color: oklch(0.5 0.19 25); font-size: 12px; font-weight: 700; }
-    .save-container { display: flex; justify-content: flex-end; margin-top: 10px; }
+    .save-container { display: flex; justify-content: flex-end; gap: 14px; margin-top: 10px; }
     .save-button {
       min-width: 170px; height: 56px; padding: 0 30px;
       border: none; border-radius: 18px;
@@ -127,6 +137,17 @@
     .save-button:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 9px 9px 20px oklch(0.72 0.02 50 / .48), -9px -9px 20px oklch(1 0 0 / .9); background: oklch(0.36 0.13 18); }
     .save-button:active:not(:disabled) { transform: translateY(0); box-shadow: inset 5px 5px 12px oklch(0.25 0.1 18 / .55), inset -5px -5px 12px oklch(0.55 0.16 22 / .3); background: oklch(0.34 0.13 18); }
     .save-button:disabled { opacity: .55; cursor: not-allowed; }
+    .cancel-button {
+      min-width: 130px; height: 56px; padding: 0 26px;
+      border: none; border-radius: 18px;
+      background: oklch(0.88 0.045 18); color: oklch(0.36 0.14 18);
+      font-family: 'Quicksand', sans-serif; font-size: 15px; font-weight: 700;
+      cursor: pointer;
+      box-shadow: 6px 6px 14px oklch(0.72 0.02 50 / .38), -6px -6px 14px oklch(1 0 0 / .85);
+      transition: box-shadow .16s ease, transform .16s ease, background .16s ease;
+    }
+    .cancel-button:hover { transform: translateY(-2px); background: oklch(0.84 0.05 18); box-shadow: 8px 8px 18px oklch(0.72 0.02 50 / .42), -8px -8px 18px oklch(1 0 0 / .9); }
+    .cancel-button:active { transform: translateY(0); background: oklch(0.80 0.055 18); box-shadow: inset 4px 4px 10px oklch(0.6 0.08 18 / .35), inset -4px -4px 10px oklch(1 0 0 / .7); }
 
     /* ===================== Search by Code ===================== */
     .search-section {
@@ -166,6 +187,7 @@
     .search-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 8px 8px 18px oklch(0.72 0.02 50 / .42), -8px -8px 18px oklch(1 0 0 / .9); background: oklch(0.84 0.05 18); }
     .search-btn:active:not(:disabled) { transform: translateY(0); box-shadow: inset 4px 4px 10px oklch(0.6 0.08 18 / .35), inset -4px -4px 10px oklch(1 0 0 / .7); background: oklch(0.80 0.055 18); }
     .search-btn:disabled { opacity: .55; cursor: not-allowed; }
+    .search-inline-error { margin-top: 12px; padding: 11px 14px; border-radius: 14px; background: oklch(0.95 0.012 55); color: oklch(0.5 0.19 25); box-shadow: inset 3px 3px 8px oklch(0.6 0.19 25 / .18), inset -3px -3px 8px oklch(1 0 0 / .7); font-size: 13px; font-weight: 600; line-height: 1.5; }
     /* ============================================================ */
 
     /* ===================== Result Modal (Pop-up) ===================== */
@@ -360,8 +382,8 @@
       .card { padding: 28px 20px; border-radius: 24px; }
       .header h1 { font-size: 26px; }
       .header p { font-size: 14px; }
-      .save-container { justify-content: stretch; }
-      .save-button { width: 100%; }
+      .save-container { justify-content: stretch; flex-wrap: wrap; }
+      .save-button, .cancel-button { flex: 1; min-width: 120px; }
       .filter-top { grid-template-columns: 1fr; }
       .filter-actions { width: 100%; }
       .filter-actions .select-all-btn { flex: 1; }
@@ -438,6 +460,7 @@
       </div>
 
       <div class="save-container">
+        <button type="button" id="cancelButton" class="cancel-button">Cancel</button>
         <button type="button" id="saveButton" class="save-button" disabled>Save</button>
       </div>
 
@@ -447,6 +470,7 @@
           <input type="text" id="searchCodeInput" class="search-code-input" autocomplete="off" placeholder="e.g. PCP-MIR-01">
           <button type="button" id="searchButton" class="search-btn">Search</button>
         </div>
+        <div id="searchInlineError" class="search-inline-error" hidden></div>
       </div>
     </section>
   </main>
@@ -817,6 +841,8 @@
         else { availTd.textContent = '—'; availTd.className = 'muted'; }
 
         const qtyTd = document.createElement('td');
+        const canEnterQuantity = !!(state.partNumber && isValidAvailable(state.available) && Number(String(state.available).replace(/,/g, '')) > 0);
+        if (canEnterQuantity) qtyTd.className = 'qty-cell-active';
         const qtyInput = document.createElement('input');
         qtyInput.type = 'text';
         qtyInput.className = 'quantity-input';
@@ -824,7 +850,7 @@
         qtyInput.autocomplete = 'off';
         qtyInput.placeholder = 'Enter quantity';
         qtyInput.value = state.quantity || '';
-        qtyInput.disabled = !(state.partNumber && isValidAvailable(state.available) && Number(String(state.available).replace(/,/g, '')) > 0);
+        qtyInput.disabled = !canEnterQuantity;
         qtyInput.addEventListener('input', function() {
           sanitizeQuantityInput(qtyInput);
           state.quantity = qtyInput.value;
@@ -893,7 +919,20 @@
       return Number.isFinite(value);
     }
 
-    function setupSaveButton() { document.getElementById('saveButton').addEventListener('click', handleSave); }
+    function setupSaveButton() {
+      document.getElementById('saveButton').addEventListener('click', handleSave);
+      document.getElementById('cancelButton').addEventListener('click', handleCancel);
+    }
+
+    function handleCancel() {
+      const hasWork = selectedItemNames.size > 0 || !!getSelectedType() || document.getElementById('searchCodeInput').value.trim();
+      if (hasWork && !confirm('This will clear everything on this page. Continue?')) return;
+      hideError();
+      hideSuccess();
+      hideSearchInlineError();
+      document.getElementById('searchCodeInput').value = '';
+      resetForm();
+    }
 
     function handleSave() {
       hideError();
@@ -903,21 +942,35 @@
       const selected = Array.from(selectedItemNames);
       if (!selected.length) { showError('Please select at least one Item Name.'); return; }
 
-      const rows = [];
+      const readyRows = [];
+      const incompleteItemNames = [];
+
       for (let i = 0; i < selected.length; i++) {
         const itemName = selected[i];
         const state = rowState[itemName];
-        if (!state || !state.partNumber) { showError('Please select a Part Number for Item: ' + itemName + '.'); return; }
+
+        if (!state || !state.partNumber) { incompleteItemNames.push(itemName); continue; }
         if (!isValidBoq(state.boq)) { showError('No valid PO BOQ was found for Item: ' + itemName + '.'); return; }
         if (!isValidAvailable(state.available)) { showError('No valid Available quantity was found for Item: ' + itemName + '.'); return; }
-        if (!state.quantity || !/^\d+(\.\d+)?$/.test(state.quantity)) { showError('Please enter a valid Quantity for Item: ' + itemName + '.'); return; }
+        if (!state.quantity || !state.quantity.trim()) { incompleteItemNames.push(itemName); continue; }
+        if (!/^\d+(\.\d+)?$/.test(state.quantity)) { showError('Please enter a valid Quantity for Item: ' + itemName + '.'); return; }
+
         const quantity = Number(state.quantity);
         const available = Number(String(state.available).replace(/,/g, ''));
         if (!Number.isFinite(quantity) || quantity <= 0) { showError('Quantity for Item: ' + itemName + ' must be greater than zero.'); return; }
         if (quantity > available) { showError('Quantity (' + formatNumber(quantity) + ') cannot be greater than Available (' + formatNumber(available) + ') for Item: ' + itemName + '.'); return; }
-        rows.push({ itemName: itemName, partNumber: state.partNumber, quantity: state.quantity });
+
+        readyRows.push({ itemName: itemName, partNumber: state.partNumber, quantity: state.quantity });
       }
-      saveSubmittals(type, rows);
+
+      if (!readyRows.length) { showError('Please complete at least one item (Part Number and Quantity) before saving.'); return; }
+
+      if (incompleteItemNames.length) {
+        const proceed = confirm('These items have no Quantity entered and will not be saved:\n' + incompleteItemNames.join(', ') + '\n\nSave the completed items now?');
+        if (!proceed) return;
+      }
+
+      saveSubmittals(type, readyRows);
     }
 
     function saveSubmittals(type, rows) {
@@ -932,7 +985,7 @@
           const submittalCode = (responseData.length && responseData[0].submittalCode) || '';
           const savedAt = (responseData.length && responseData[0].timestamp) ? new Date(responseData[0].timestamp) : new Date();
           showResultModal(type, submittalCode, savedAt, responseData);
-          resetFormAfterSave();
+          removeSavedItemsFromForm(rows.map(function(row) { return row.itemName; }));
         } catch (error) {
           showError(error && error.message ? error.message : 'Unable to save the submittals.');
         } finally {
@@ -957,13 +1010,31 @@
       return select ? select.value : '';
     }
 
-    function resetFormAfterSave() {
+    function resetForm() {
       const select = document.getElementById('typeSelect');
       if (select) select.value = '';
       selectedItemNames.clear();
       rowState = {};
       enableItemSelector(false);
       updateSelectedItemsUI();
+    }
+
+    /*
+     * Removes only the given (just-saved) Item Names from the
+     * form, leaving any still-incomplete items in place so the
+     * user can keep working on them. If nothing is left
+     * selected, the Submittal Type is reset too.
+     */
+    function removeSavedItemsFromForm(savedItemNames) {
+      savedItemNames.forEach(function(itemName) {
+        selectedItemNames.delete(itemName);
+        delete rowState[itemName];
+      });
+      if (selectedItemNames.size === 0) {
+        resetForm();
+      } else {
+        updateSelectedItemsUI();
+      }
     }
 
     function escapeHtml(value) {
@@ -1013,12 +1084,25 @@
       });
     }
 
+    function showSearchInlineError(message) {
+      const el = document.getElementById('searchInlineError');
+      el.textContent = message;
+      el.hidden = false;
+    }
+
+    function hideSearchInlineError() {
+      const el = document.getElementById('searchInlineError');
+      el.textContent = '';
+      el.hidden = true;
+    }
+
     function handleSearch() {
       const input = document.getElementById('searchCodeInput');
       const code = input.value.trim();
       hideError();
       hideSuccess();
-      if (!code) { showError('Please enter a Submittal Code to search for.'); return; }
+      hideSearchInlineError();
+      if (!code) { showSearchInlineError('Please enter a Submittal Code to search for.'); return; }
 
       const button = document.getElementById('searchButton');
       button.disabled = true;
@@ -1049,7 +1133,7 @@
           };
           showSearchResultModal();
         } catch (error) {
-          showError(error && error.message ? error.message : 'Unable to find this Submittal Code.');
+          showSearchInlineError(error && error.message ? error.message : 'Unable to find this Submittal Code.');
         } finally {
           button.disabled = false;
           button.textContent = 'Search';
@@ -1061,7 +1145,7 @@
       script.onerror = function() {
         button.disabled = false;
         button.textContent = 'Search';
-        showError('Unable to connect to the Google Apps Script API.');
+        showSearchInlineError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
       };
       document.body.appendChild(script);
@@ -1526,15 +1610,8 @@
     function updateSaveButtonState() {
       const button = document.getElementById('saveButton');
       const type = !!getSelectedType();
-      const items = Array.from(selectedItemNames);
-      const allReady = items.length > 0 && items.every(function(itemName) {
-        const state = rowState[itemName];
-        if (!state || !state.partNumber || !isValidAvailable(state.available) || !state.quantity) return false;
-        const quantity = Number(state.quantity);
-        const available = Number(String(state.available).replace(/,/g, ''));
-        return /^\d+(\.\d+)?$/.test(state.quantity) && Number.isFinite(quantity) && quantity > 0 && quantity <= available;
-      });
-      button.disabled = !(type && allReady);
+      const hasItems = selectedItemNames.size > 0;
+      button.disabled = !(type && hasItems);
     }
 
     function startProgress() {
