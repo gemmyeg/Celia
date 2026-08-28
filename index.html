@@ -29,30 +29,7 @@
     .header p { margin: 0; font-size: 15px; line-height: 1.6; color: oklch(0.48 0.012 50); max-width: 640px; }
     .type-section { margin-bottom: 30px; }
     .section-label { display: block; margin-bottom: 12px; font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: oklch(0.4 0.015 50); }
-    .type-select {
-      width: 100%;
-      height: 56px;
-      padding: 0 44px 0 20px;
-      border: none;
-      border-radius: 18px;
-      background-color: oklch(0.95 0.012 55);
-      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%237a2b40' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
-      background-repeat: no-repeat;
-      background-position: right 20px center;
-      background-size: 11px 8px;
-      appearance: none;
-      -webkit-appearance: none;
-      box-shadow: inset 5px 5px 12px oklch(0.72 0.02 50 / .38), inset -5px -5px 12px oklch(1 0 0 / .85);
-      color: oklch(0.3 0.02 40);
-      font-size: 15px;
-      font-weight: 700;
-      outline: none;
-      cursor: pointer;
-      transition: box-shadow .2s ease;
-    }
-    .type-select:hover:not(:disabled) { box-shadow: inset 6px 6px 14px oklch(0.72 0.02 50 / .45), inset -6px -6px 14px oklch(1 0 0 / .95); }
-    .type-select:focus { box-shadow: inset 5px 5px 12px oklch(0.42 0.13 18 / .28), inset -5px -5px 12px oklch(1 0 0 / .85); }
-    .type-select:disabled { color: oklch(0.62 0.01 50); cursor: not-allowed; }
+    #typeSelect { display: none; }
     .loading { margin-bottom: 30px; padding: 20px 22px; border-radius: 20px; background: oklch(0.95 0.012 55); box-shadow: 8px 8px 18px oklch(0.72 0.02 50 / .35), -8px -8px 18px oklch(1 0 0 / .85); }
     .loading-header { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 12px; }
     .loading-left { display: flex; align-items: center; gap: 10px; color: oklch(0.42 0.02 50); font-size: 14px; font-weight: 600; }
@@ -87,10 +64,13 @@
     .filter-option input:checked + span { font-weight: 700; color: oklch(0.38 0.14 18); }
     .filter-option input { width: 18px; height: 18px; accent-color: oklch(0.42 0.13 18); cursor: pointer; }
     .filter-option span { font-size: 14px; color: oklch(0.34 0.015 45); word-break: break-word; }
+    .type-option-row.selected { background: oklch(0.90 0.03 18 / .55); }
+    .type-option-row.selected span { font-weight: 700; color: oklch(0.38 0.14 18); }
+    .multi-select-trigger .placeholder-txt { color: oklch(0.55 0.012 50); font-weight: 500; }
     .empty-options { padding: 16px 10px; color: oklch(0.6 0.012 50); font-size: 13px; }
     .selection-count { margin-top: 10px; font-size: 13px; color: oklch(0.5 0.012 50); font-weight: 600; }
     .selected-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .selected-chip { display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 999px; background: oklch(0.95 0.012 55); box-shadow: 3px 3px 8px oklch(0.72 0.02 50 / .38), -3px -3px 8px oklch(1 0 0 / .9); color: oklch(0.38 0.13 18); font-size: 12px; font-weight: 700; }
+    .selected-chip { display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 999px; background: oklch(0.88 0.05 230); box-shadow: 3px 3px 8px oklch(0.72 0.02 50 / .38), -3px -3px 8px oklch(1 0 0 / .9); color: oklch(0.32 0.09 245); font-size: 12px; font-weight: 700; }
     .part-section { margin-top: 4px; margin-bottom: 30px; }
     .part-selection-list { display: flex; flex-direction: column; gap: 14px; }
     .part-selection-row { display: grid; grid-template-columns: minmax(180px,.75fr) minmax(240px,1.25fr); gap: 16px; align-items: center; padding: 16px 18px; border-radius: 18px; background: oklch(0.95 0.012 55); box-shadow: 6px 6px 14px oklch(0.72 0.02 50 / .35), -6px -6px 14px oklch(1 0 0 / .85); }
@@ -258,7 +238,7 @@
     .modal-result-value { text-align: right; color: oklch(0.24 0.02 40); font-size: 14px; font-weight: 600; word-break: break-word; }
     .modal-table-wrap {
       margin-top: 18px;
-      max-height: 240px;
+      max-height: 420px;
       overflow-y: auto;
       overflow-x: auto;
       border-radius: 16px;
@@ -408,9 +388,21 @@
 
       <div class="type-section">
         <span class="section-label">Submittal Type</span>
-        <select id="typeSelect" class="type-select" disabled>
+        <select id="typeSelect" disabled hidden aria-hidden="true" tabindex="-1">
           <option value="">Loading submittal types...</option>
         </select>
+        <div id="typeSelectBox" class="multi-select">
+          <div id="typeTrigger" class="multi-select-trigger disabled" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true">
+            <span id="typeSelectDisplay">Loading submittal types...</span>
+            <span class="trigger-arrow"></span>
+          </div>
+          <div id="typePanel" class="multi-select-panel" role="listbox">
+            <div class="filter-top">
+              <input id="typeSearch" class="search-input" type="text" autocomplete="off" placeholder="Search Submittal Type...">
+            </div>
+            <div id="typeOptionsList" class="options-list"></div>
+          </div>
+        </div>
       </div>
 
       <div id="errorMessage" class="message error" hidden></div>
@@ -548,6 +540,90 @@
         hideError();
         hideSuccess();
       });
+
+      const trigger = document.getElementById('typeTrigger');
+      const panel = document.getElementById('typePanel');
+      const search = document.getElementById('typeSearch');
+
+      trigger.addEventListener('click', function() {
+        if (trigger.classList.contains('disabled')) return;
+        const opening = !panel.classList.contains('open');
+        panel.classList.toggle('open', opening);
+        trigger.classList.toggle('open', opening);
+        trigger.setAttribute('aria-expanded', String(opening));
+        if (opening) {
+          search.value = '';
+          renderTypeOptions();
+          setTimeout(function() { search.focus(); }, 0);
+        }
+      });
+
+      trigger.addEventListener('keydown', function(event) {
+        if ((event.key === 'Enter' || event.key === ' ') && !trigger.classList.contains('disabled')) {
+          event.preventDefault();
+          trigger.click();
+        }
+      });
+
+      search.addEventListener('input', renderTypeOptions);
+
+      document.addEventListener('click', function(event) {
+        if (!document.getElementById('typeSelectBox').contains(event.target)) closeTypePanel();
+      });
+    }
+
+    function closeTypePanel() {
+      document.getElementById('typePanel').classList.remove('open');
+      document.getElementById('typeTrigger').classList.remove('open');
+      document.getElementById('typeTrigger').setAttribute('aria-expanded', 'false');
+    }
+
+    function getFilteredTypes() {
+      const query = document.getElementById('typeSearch').value.trim().toLowerCase();
+      return (databaseData.submittalTypes || []).filter(function(type) {
+        return !query || type.toLowerCase().includes(query);
+      });
+    }
+
+    function renderTypeOptions() {
+      const list = document.getElementById('typeOptionsList');
+      const types = getFilteredTypes();
+      const currentValue = getSelectedType();
+      list.innerHTML = '';
+      if (!types.length) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-options';
+        empty.textContent = 'No matching Submittal Types.';
+        list.appendChild(empty);
+        return;
+      }
+      types.forEach(function(type) {
+        const option = document.createElement('div');
+        option.className = 'filter-option type-option-row' + (type === currentValue ? ' selected' : '');
+        option.setAttribute('role', 'option');
+        option.tabIndex = -1;
+        const text = document.createElement('span');
+        text.textContent = type;
+        option.appendChild(text);
+        option.addEventListener('click', function() { selectType(type); });
+        list.appendChild(option);
+      });
+    }
+
+    function selectType(type) {
+      const select = document.getElementById('typeSelect');
+      select.value = type;
+      select.dispatchEvent(new Event('change'));
+      syncTypeDisplay();
+      closeTypePanel();
+    }
+
+    function syncTypeDisplay() {
+      const display = document.getElementById('typeSelectDisplay');
+      const value = getSelectedType();
+      const types = databaseData.submittalTypes || [];
+      display.textContent = value || (types.length ? 'Select Submittal Type' : 'No submittal types found');
+      display.classList.toggle('placeholder-txt', !value);
     }
 
     function populateTypeSelect() {
@@ -571,6 +647,12 @@
 
       select.disabled = types.length === 0;
       select.value = types.includes(previousValue) ? previousValue : '';
+
+      const trigger = document.getElementById('typeTrigger');
+      trigger.classList.toggle('disabled', types.length === 0);
+      trigger.setAttribute('aria-disabled', String(types.length === 0));
+      syncTypeDisplay();
+      renderTypeOptions();
     }
 
     function setupItemMultiSelect() {
@@ -1013,6 +1095,8 @@
     function resetForm() {
       const select = document.getElementById('typeSelect');
       if (select) select.value = '';
+      closeTypePanel();
+      syncTypeDisplay();
       selectedItemNames.clear();
       rowState = {};
       enableItemSelector(false);
