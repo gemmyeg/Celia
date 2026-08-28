@@ -335,19 +335,19 @@
         <p>Select one submittal type, then select one or more Item Names. Each selected Item gets its own Part Number selection and Quantity.</p>
       </div>
 
-      <div class="type-section">
-        <span class="section-label">Submittal Type</span>
-        <select id="typeSelect" class="type-select" disabled>
-          <option value="">Loading submittal types...</option>
-        </select>
-      </div>
-
       <div id="loading" class="loading">
         <div class="loading-header">
           <div class="loading-left"><div id="spinner" class="spinner"></div><span id="loadingText">Loading database...</span></div>
           <div id="loadingPercentage" class="loading-percentage">0%</div>
         </div>
         <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+      </div>
+
+      <div class="type-section">
+        <span class="section-label">Submittal Type</span>
+        <select id="typeSelect" class="type-select" disabled>
+          <option value="">Loading submittal types...</option>
+        </select>
       </div>
 
       <div id="errorMessage" class="message error" hidden></div>
@@ -1302,7 +1302,7 @@
           searchState.editAll = false;
           button.classList.remove('active');
           button.textContent = 'Edit All';
-          renderSearchResultsTable();
+          closeSearchResultModal();
         } catch (error) {
           button.textContent = 'Save All';
           const message = error && error.message ? error.message : 'Unable to update the quantities.';
@@ -1343,7 +1343,7 @@
         try {
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to delete these rows.');
           searchState.rows = [];
-          renderSearchResultsTable();
+          closeSearchResultModal();
         } catch (error) {
           showSearchModalError(error && error.message ? error.message : 'Unable to delete these rows.');
         } finally {
