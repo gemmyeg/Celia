@@ -388,6 +388,22 @@
     .status-select:hover:not(:disabled) { box-shadow: inset 5px 5px 11px oklch(0.72 0.02 50 / .45), inset -5px -5px 11px oklch(1 0 0 / .95); }
     .status-select:focus { box-shadow: inset 4px 4px 9px oklch(0.42 0.13 18 / .24), inset -4px -4px 9px oklch(1 0 0 / .85); }
     .status-select:disabled { opacity: .6; cursor: not-allowed; }
+    .status-save-btn {
+      flex: none; height: 40px; padding: 0 18px; border: none; border-radius: 14px;
+      background: oklch(0.42 0.13 18); color: oklch(0.98 0.01 40);
+      font-family: 'Quicksand', sans-serif; font-size: 13.5px; font-weight: 700; cursor: pointer;
+      box-shadow: 4px 4px 10px oklch(0.72 0.02 50 / .38), -4px -4px 10px oklch(1 0 0 / .85);
+      transition: box-shadow .16s ease, transform .16s ease, background .16s ease, opacity .16s ease;
+    }
+    .status-save-btn:hover:not(:disabled) { transform: translateY(-1px); background: oklch(0.36 0.13 18); box-shadow: 5px 5px 12px oklch(0.72 0.02 50 / .42), -5px -5px 12px oklch(1 0 0 / .9); }
+    .status-save-btn:active:not(:disabled) { transform: translateY(0); box-shadow: inset 3px 3px 8px oklch(0.25 0.1 18 / .5), inset -3px -3px 8px oklch(0.55 0.16 22 / .3); }
+    .status-save-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+    .row-action-btn.partly-save-btn {
+      width: auto; padding: 0 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .01em;
+      color: oklch(0.42 0.13 18); background: oklch(0.90 0.03 18);
+    }
+    .row-action-btn.partly-save-btn:hover:not(:disabled) { color: oklch(0.36 0.13 18); background: oklch(0.86 0.045 18); }
+    .row-partly-save-wrap { margin-top: 6px; }
     .search-empty-state { padding: 24px 10px; text-align: center; color: oklch(0.6 0.012 50); font-size: 14px; }
     .row-actions-cell { text-align: right; white-space: nowrap; }
     .row-action-btn {
@@ -625,12 +641,13 @@
         <select id="searchModalStatusSelect" class="status-select">
           <option value="">Select Status</option>
         </select>
+        <button type="button" id="searchModalStatusSaveButton" class="status-save-btn" disabled>Save</button>
       </div>
       <div id="searchModalError" class="modal-error" hidden></div>
       <div class="modal-table-wrap search-table-wrap">
         <table class="modal-details-table">
           <thead>
-            <tr><th>Item</th><th>Part Number</th><th>BOQ</th><th>Qty</th><th></th></tr>
+            <tr><th>Item</th><th>Part Number</th><th>BOQ</th><th>Qty</th><th>Status</th><th></th></tr>
           </thead>
           <tbody id="searchResultsBody"></tbody>
         </table>
@@ -1582,6 +1599,7 @@
               vendor: row.vendor || '',
               boq: row.boq || '',
               quantity: row.quantity || '',
+              status: row.status || '',
               editing: false
             };
           });
@@ -1627,12 +1645,14 @@
       });
       document.getElementById('deleteAllButton').addEventListener('click', handleDeleteAllResults);
       document.getElementById('editAllButton').addEventListener('click', handleEditAllToggle);
-      document.getElementById('searchModalStatusSelect').addEventListener('change', handleStatusChange);
+      document.getElementById('searchModalStatusSelect').addEventListener('change', handleStatusSelectChange);
+      document.getElementById('searchModalStatusSaveButton').addEventListener('click', handleStatusSaveClick);
     }
 
     function populateSearchModalStatusSelect() {
       const row = document.getElementById('searchModalStatusRow');
       const select = document.getElementById('searchModalStatusSelect');
+      const saveButton = document.getElementById('searchModalStatusSaveButton');
       const options = databaseData.statusOptions || [];
 
       if (!options.length) {
@@ -1657,17 +1677,33 @@
 
       select.value = options.includes(searchState.status) ? searchState.status : '';
       select.disabled = false;
+      saveButton.disabled = true;
     }
 
-    function handleStatusChange() {
+    /*
+     * Selecting a new Status does NOT save it right away — it only
+     * arms the Save button. This also lets the same selection be
+     * used as the target Status for a row's "Partly Save" without
+     * committing a full status change first.
+     */
+    function handleStatusSelectChange() {
       if (!searchState) return;
       const select = document.getElementById('searchModalStatusSelect');
+      const saveButton = document.getElementById('searchModalStatusSaveButton');
+      saveButton.disabled = !select.value || select.value === searchState.status;
+    }
+
+    function handleStatusSaveClick() {
+      if (!searchState) return;
+      const select = document.getElementById('searchModalStatusSelect');
+      const saveButton = document.getElementById('searchModalStatusSaveButton');
       const newStatus = select.value;
       const previousStatus = searchState.status;
       if (!newStatus || newStatus === previousStatus) return;
 
       hideSearchModalError();
       select.disabled = true;
+      saveButton.disabled = true;
 
       const callbackName = 'handleUpdateStatusResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
@@ -1676,11 +1712,14 @@
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to update the status.');
           searchState.status = response.status || newStatus;
           select.value = searchState.status;
+          searchState.rows.forEach(function(row) { row.status = searchState.status; });
+          renderSearchResultsTable();
         } catch (error) {
           select.value = previousStatus;
           showSearchModalError(error && error.message ? error.message : 'Unable to update the status.');
         } finally {
           select.disabled = false;
+          saveButton.disabled = !select.value || select.value === searchState.status;
           cleanupJsonp(script, callbackName);
         }
       };
@@ -1692,6 +1731,7 @@
       script.onerror = function() {
         select.value = previousStatus;
         select.disabled = false;
+        saveButton.disabled = !select.value || select.value === searchState.status;
         showSearchModalError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
       };
@@ -1783,7 +1823,7 @@
       if (!searchState || !searchState.rows.length) {
         const tr = document.createElement('tr');
         const td = document.createElement('td');
-        td.colSpan = 5;
+        td.colSpan = 6;
         td.className = 'search-empty-state';
         td.textContent = 'No rows remaining for this Submittal Code.';
         tr.appendChild(td);
@@ -1834,6 +1874,14 @@
           qtyTd.textContent = (row.quantity !== undefined && row.quantity !== null && row.quantity !== '') ? formatNumber(row.quantity) : '';
         }
 
+        const statusTd = document.createElement('td');
+        if (row.status) {
+          statusTd.textContent = row.status;
+        } else {
+          statusTd.textContent = '—';
+          statusTd.className = 'muted';
+        }
+
         const actionsTd = document.createElement('td');
         actionsTd.className = 'row-actions-cell';
 
@@ -1845,6 +1893,16 @@
           editBtn.innerHTML = row.editing ? SAVE_ICON_SVG : EDIT_ICON_SVG;
           editBtn.addEventListener('click', function() { handleRowEditToggle(index); });
           actionsTd.appendChild(editBtn);
+
+          if (row.editing) {
+            const partlyBtn = document.createElement('button');
+            partlyBtn.type = 'button';
+            partlyBtn.className = 'row-action-btn partly-save-btn';
+            partlyBtn.title = 'Split part of this Quantity off into the Status selected above';
+            partlyBtn.textContent = 'Partly Save';
+            partlyBtn.addEventListener('click', function() { handlePartlySave(index); });
+            actionsTd.appendChild(partlyBtn);
+          }
         }
 
         const deleteBtn = document.createElement('button');
@@ -1860,6 +1918,7 @@
         tr.appendChild(partTd);
         tr.appendChild(boqTd);
         tr.appendChild(qtyTd);
+        tr.appendChild(statusTd);
         tr.appendChild(actionsTd);
         body.appendChild(tr);
       });
@@ -1917,6 +1976,81 @@
         '&itemName=' + encodeURIComponent(row.itemName) +
         '&partNumber=' + encodeURIComponent(row.partNumber) +
         '&quantity=' + encodeURIComponent(quantity) +
+        '&token=' + encodeURIComponent(currentSessionToken);
+      script.onerror = function() {
+        showSearchModalError('Unable to connect to the Google Apps Script API.');
+        cleanupJsonp(script, callbackName);
+      };
+      document.body.appendChild(script);
+    }
+
+    function handlePartlySave(index) {
+      if (!searchState) return;
+      const row = searchState.rows[index];
+      if (!row || !row.editing) return;
+
+      const splitQuantity = String(row.quantity).trim();
+      if (!splitQuantity || !/^\d+(\.\d+)?$/.test(splitQuantity)) {
+        showSearchModalError('Please enter a valid Quantity to split for Item: ' + row.itemName + '.');
+        return;
+      }
+
+      const statusSelect = document.getElementById('searchModalStatusSelect');
+      const newStatus = statusSelect ? statusSelect.value : '';
+
+      if (!newStatus) {
+        showSearchModalError('Please select a Status above first, then Partly Save.');
+        return;
+      }
+
+      if (newStatus === row.status) {
+        showSearchModalError('Please select a Status different from this row’s current Status ("' + (row.status || 'none') + '") to Partly Save.');
+        return;
+      }
+
+      hideSearchModalError();
+      const callbackName = 'handlePartlySaveResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+      window[callbackName] = function(response) {
+        try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
+          if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to split this Quantity.');
+
+          const originalStatus = row.status;
+          row.quantity = response.remainingQuantity !== undefined && response.remainingQuantity !== null ? response.remainingQuantity : row.quantity;
+          row.status = response.remainingStatus !== undefined && response.remainingStatus !== null ? response.remainingStatus : originalStatus;
+          row.editing = false;
+
+          searchState.rows.splice(index + 1, 0, {
+            itemName: row.itemName,
+            partNumber: row.partNumber,
+            scope: row.scope,
+            unit: row.unit,
+            vendor: row.vendor,
+            boq: row.boq,
+            quantity: response.splitQuantity !== undefined && response.splitQuantity !== null ? response.splitQuantity : splitQuantity,
+            status: response.newStatus || newStatus,
+            editing: false
+          });
+
+          renderSearchResultsTable();
+        } catch (error) {
+          const message = error && error.message ? error.message : 'Unable to split this Quantity.';
+          showSearchModalError(message);
+          if (/Quantity/i.test(message)) {
+            const input = getRowQtyInput(index);
+            if (input) input.classList.add('invalid');
+          }
+        } finally {
+          cleanupJsonp(script, callbackName);
+        }
+      };
+      const script = document.createElement('script');
+      script.src = API_URL + '?action=partlySaveSubmittalRow&prefix=' + encodeURIComponent(callbackName) +
+        '&submittalCode=' + encodeURIComponent(searchState.submittalCode) +
+        '&itemName=' + encodeURIComponent(row.itemName) +
+        '&partNumber=' + encodeURIComponent(row.partNumber) +
+        '&splitQuantity=' + encodeURIComponent(splitQuantity) +
+        '&newStatus=' + encodeURIComponent(newStatus) +
         '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         showSearchModalError('Unable to connect to the Google Apps Script API.');
