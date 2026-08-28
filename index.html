@@ -50,15 +50,19 @@
     .filter-top { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-bottom: 10px; }
     .search-input { height: 42px; width: 100%; padding: 0 12px; border: 1px solid #d8dee8; border-radius: 8px; outline: none; font-size: 14px; }
     .search-input:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.10); }
-    .select-all-btn { border: 1px solid #d8dee8; background: #f8fafc; border-radius: 8px; padding: 0 12px; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer; }
+    .filter-actions { display: flex; gap: 8px; }
+    .select-all-btn { min-width: 78px; height: 42px; border: 1px solid #d8dee8; background: #f8fafc; border-radius: 8px; padding: 0 12px; font-size: 13px; font-weight: 700; color: #334155; cursor: pointer; }
     .select-all-btn:hover { background: #eef2f7; }
     .options-list { max-height: 260px; overflow-y: auto; border-top: 1px solid #eef2f7; padding-top: 6px; }
     .filter-option { display: flex; align-items: center; gap: 10px; padding: 9px 8px; border-radius: 8px; cursor: pointer; }
     .filter-option:hover { background: #f8fafc; }
+    .filter-option input:checked + span { font-weight: 700; color: #1d4ed8; }
     .filter-option input { width: 17px; height: 17px; accent-color: #2563eb; cursor: pointer; }
     .filter-option span { font-size: 14px; color: #334155; word-break: break-word; }
     .empty-options { padding: 15px 8px; color: #94a3b8; font-size: 13px; }
     .selection-count { margin-top: 8px; font-size: 13px; color: #64748b; }
+    .selected-chip-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .selected-chip { display: inline-flex; align-items: center; padding: 5px 9px; border-radius: 999px; background: #eff6ff; color: #1d4ed8; font-size: 12px; font-weight: 700; }
     .part-section { margin-top: 4px; margin-bottom: 30px; }
     .part-selection-list { display: flex; flex-direction: column; gap: 10px; }
     .part-selection-row { display: grid; grid-template-columns: minmax(180px,.75fr) minmax(240px,1.25fr); gap: 15px; align-items: center; padding: 12px 14px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc; }
@@ -103,6 +107,8 @@
       .save-container { justify-content: stretch; }
       .save-button { width: 100%; }
       .filter-top { grid-template-columns: 1fr; }
+      .filter-actions { width: 100%; }
+      .filter-actions .select-all-btn { flex: 1; }
       .result-row { flex-direction: column; gap: 4px; }
       .result-value { text-align: left; }
     }
@@ -141,18 +147,22 @@
       <div class="field">
         <label for="itemNameTrigger">Item Name</label>
         <div id="itemMultiSelect" class="multi-select">
-          <div id="itemNameTrigger" class="multi-select-trigger disabled" tabindex="0" aria-disabled="true">
+          <div id="itemNameTrigger" class="multi-select-trigger disabled" tabindex="0" role="button" aria-haspopup="listbox" aria-expanded="false" aria-disabled="true">
             <span id="itemNameDisplay">Select Item Name</span>
             <span class="trigger-arrow"></span>
           </div>
-          <div id="itemNamePanel" class="multi-select-panel">
+          <div id="itemNamePanel" class="multi-select-panel" role="listbox" aria-multiselectable="true">
             <div class="filter-top">
               <input id="itemSearch" class="search-input" type="text" autocomplete="off" placeholder="Search Item Name...">
-              <button id="selectAllButton" class="select-all-btn" type="button">Select All</button>
+              <div class="filter-actions">
+                <button id="selectAllButton" class="select-all-btn" type="button">Select All</button>
+                <button id="clearAllButton" class="select-all-btn" type="button">Clear</button>
+              </div>
             </div>
             <div id="itemOptionsList" class="options-list"></div>
           </div>
           <div id="selectionCount" class="selection-count">0 items selected</div>
+          <div id="selectedChipList" class="selected-chip-list"></div>
         </div>
       </div>
 
@@ -189,7 +199,7 @@
   </main>
 
   <script>
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzBUYJzF3JtJo-o0VSJjsAsj4BCi2FuqWnTc0xGv7Dr6vESwasd2B4f39_Yc0pLAOhx/exec';
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwmeciYKfJZcM2ZqDAVmzKLTjPtpdGPbklQDTgXtTurCUvCEOKXs3oEGFTpwTxVnykH/exec';
 
     let databaseData = { itemNames: [], dependentPartNumbers: {} };
     let selectedItemNames = new Set();
@@ -230,12 +240,14 @@
       const panel = document.getElementById('itemNamePanel');
       const search = document.getElementById('itemSearch');
       const selectAll = document.getElementById('selectAllButton');
+      const clearAll = document.getElementById('clearAllButton');
 
       trigger.addEventListener('click', function() {
         if (trigger.classList.contains('disabled')) return;
         const opening = !panel.classList.contains('open');
         panel.classList.toggle('open', opening);
         trigger.classList.toggle('open', opening);
+        trigger.setAttribute('aria-expanded', String(opening));
         if (opening) {
           search.value = '';
           renderItemOptions();
@@ -260,6 +272,14 @@
         });
         renderItemOptions();
         updateSelectedItemsUI();
+      });
+
+      clearAll.addEventListener('click', function() {
+        selectedItemNames.clear();
+        renderItemOptions();
+        updateSelectedItemsUI();
+        hideError();
+        hideSuccess();
       });
 
       document.addEventListener('click', function(event) {
@@ -324,6 +344,7 @@
     function closeItemPanel() {
       document.getElementById('itemNamePanel').classList.remove('open');
       document.getElementById('itemNameTrigger').classList.remove('open');
+      document.getElementById('itemNameTrigger').setAttribute('aria-expanded', 'false');
     }
 
     function updateSelectedItemsUI() {
@@ -333,6 +354,14 @@
       else if (selected.length === 1) display.textContent = selected[0];
       else display.textContent = selected.length + ' Item Names selected';
       document.getElementById('selectionCount').textContent = selected.length + (selected.length === 1 ? ' item selected' : ' items selected');
+      const chipList = document.getElementById('selectedChipList');
+      chipList.innerHTML = '';
+      selected.forEach(function(itemName) {
+        const chip = document.createElement('span');
+        chip.className = 'selected-chip';
+        chip.textContent = itemName;
+        chipList.appendChild(chip);
+      });
       rebuildPartSelectionRows();
       updateQuantityTable();
       updateSaveButtonState();
