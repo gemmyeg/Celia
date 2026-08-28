@@ -27,6 +27,13 @@
     .header { margin-bottom: 32px; }
     .header h1 { font-family: 'Quicksand', sans-serif; margin: 0 0 10px; font-size: 32px; line-height: 1.2; font-weight: 700; color: oklch(0.24 0.02 40); }
     .header p { margin: 0; font-size: 15px; line-height: 1.6; color: oklch(0.48 0.012 50); max-width: 640px; }
+    .header-top-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+    .session-info { display: flex; align-items: center; gap: 12px; flex: none; }
+    .session-username { font-size: 13px; font-weight: 700; color: oklch(0.42 0.13 18); }
+    .logout-button { flex: none; height: 38px; padding: 0 16px; border: none; border-radius: 14px; background: oklch(0.90 0.05 25); color: oklch(0.5 0.19 25); font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: 3px 3px 8px oklch(0.72 0.02 50 / .3), -3px -3px 8px oklch(1 0 0 / .85); transition: box-shadow .16s ease, transform .16s ease; }
+    .logout-button:hover { transform: translateY(-1px); box-shadow: 4px 4px 10px oklch(0.72 0.02 50 / .35), -4px -4px 10px oklch(1 0 0 / .9); }
+    .logout-button:active { transform: translateY(0); box-shadow: inset 3px 3px 7px oklch(0.55 0.19 25 / .3), inset -3px -3px 7px oklch(1 0 0 / .6); }
+    .session-check-state { color: oklch(0.5 0.012 50); font-size: 14px; font-weight: 600; padding: 60px 20px; text-align: center; }
     .type-section { margin-bottom: 30px; }
     .section-label { display: block; margin-bottom: 12px; font-size: 12.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: oklch(0.4 0.015 50); }
     #typeSelect { display: none; }
@@ -378,10 +385,19 @@
 </head>
 <body>
   <main class="page">
-    <section class="card">
+    <div id="sessionCheckState" class="session-check-state">Checking your session&hellip;</div>
+    <section class="card" id="appCard" hidden>
       <div class="header">
-        <h1>QS Submittals</h1>
-        <p>Select one submittal type, then select one or more Item Names. Each selected Item gets its own Part Number selection and Quantity.</p>
+        <div class="header-top-row">
+          <div>
+            <h1>QS Submittals</h1>
+            <p>Select one submittal type, then select one or more Item Names. Each selected Item gets its own Part Number selection and Quantity.</p>
+          </div>
+          <div class="session-info">
+            <span id="sessionUsername" class="session-username"></span>
+            <button type="button" id="logoutButton" class="logout-button">Log Out</button>
+          </div>
+        </div>
       </div>
 
       <div id="loading" class="loading">
@@ -531,18 +547,118 @@
     let detailsRequestSequence = 0;
     let searchState = null;
 
+    const SESSION_STORAGE_KEY = 'qsSubmittalsSession';
+    let currentSessionToken = '';
+
     document.addEventListener('DOMContentLoaded', initialize);
 
-    function initialize() {
+    async function initialize() {
+      setupErrorModal();
+
+      const session = getStoredSession();
+      if (!session || !session.token) {
+        redirectToLogin();
+        return;
+      }
+
+      let validation;
+      try {
+        validation = await callApiPromise('validateSession', { token: session.token });
+      } catch (networkError) {
+        showSessionCheckState('Unable to connect to the Google Apps Script API. Please check your connection and reload this page.');
+        return;
+      }
+
+      if (!validation || !validation.success) {
+        clearStoredSession();
+        redirectToLogin();
+        return;
+      }
+
+      currentSessionToken = session.token;
+      document.getElementById('sessionUsername').textContent = 'Signed in as ' + (validation.username || session.username || '');
+      document.getElementById('logoutButton').addEventListener('click', handleLogout);
+      document.getElementById('sessionCheckState').hidden = true;
+      document.getElementById('appCard').hidden = false;
+
+      initializeApp();
+    }
+
+    function initializeApp() {
       setupTypeSelect();
       setupItemMultiSelect();
       setupSaveButton();
       setupResultModal();
-      setupErrorModal();
       setupSearch();
       setupSearchResultModal();
       startProgress();
       loadDatabaseData();
+    }
+
+    function showSessionCheckState(message) {
+      const el = document.getElementById('sessionCheckState');
+      el.textContent = message;
+      el.hidden = false;
+    }
+
+    function redirectToLogin() {
+      window.location.href = 'login.html';
+    }
+
+    function getStoredSession() {
+      try {
+        const raw = sessionStorage.getItem(SESSION_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (storageError) {
+        return null;
+      }
+    }
+
+    function clearStoredSession() {
+      try { sessionStorage.removeItem(SESSION_STORAGE_KEY); } catch (storageError) {}
+    }
+
+    function handleAuthRequired() {
+      clearStoredSession();
+      redirectToLogin();
+    }
+
+    async function handleLogout() {
+      const button = document.getElementById('logoutButton');
+      button.disabled = true;
+      try {
+        await callApiPromise('logout', { token: currentSessionToken });
+      } catch (networkError) {
+        // Best-effort: log out locally either way.
+      }
+      clearStoredSession();
+      redirectToLogin();
+    }
+
+    /*
+     * Promise-based JSONP helper used only for the small auth actions
+     * (validateSession / logout) that run before the rest of the app's
+     * existing callback-style JSONP calls are wired up.
+     */
+    function callApiPromise(action, params) {
+      return new Promise(function(resolve, reject) {
+        const callbackName = 'handleAuthApi_' + Date.now() + '_' + Math.floor(Math.random() * 100000);
+        window[callbackName] = function(response) {
+          cleanupJsonp(script, callbackName);
+          resolve(response);
+        };
+        let url = API_URL + '?action=' + encodeURIComponent(action) + '&prefix=' + encodeURIComponent(callbackName);
+        Object.keys(params || {}).forEach(function(key) {
+          url += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
+        });
+        const script = document.createElement('script');
+        script.src = url;
+        script.onerror = function() {
+          cleanupJsonp(script, callbackName);
+          reject(new Error('Unable to connect to the Google Apps Script API.'));
+        };
+        document.body.appendChild(script);
+      });
     }
 
     function setupTypeSelect() {
@@ -847,6 +963,7 @@
       const callbackName = 'handlePartDetails_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
           const state = rowState[itemName];
           if (!state || state.requestId !== requestId || !selectedItemNames.has(itemName) || state.partNumber !== partNumber) return;
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to load Part Number details.');
@@ -869,7 +986,7 @@
         }
       };
       const script = document.createElement('script');
-      script.src = API_URL + '?action=getPartDetails&prefix=' + encodeURIComponent(callbackName) + '&itemName=' + encodeURIComponent(itemName) + '&partNumber=' + encodeURIComponent(partNumber) + '&type=' + encodeURIComponent(getSelectedType());
+      script.src = API_URL + '?action=getPartDetails&prefix=' + encodeURIComponent(callbackName) + '&itemName=' + encodeURIComponent(itemName) + '&partNumber=' + encodeURIComponent(partNumber) + '&type=' + encodeURIComponent(getSelectedType()) + '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         showError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
@@ -1093,6 +1210,7 @@
       const callbackName = 'handleSaveResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to save the submittals.');
           const responseData = response.data || [];
           const submittalCode = (responseData.length && responseData[0].submittalCode) || '';
@@ -1108,7 +1226,7 @@
         }
       };
       const script = document.createElement('script');
-      script.src = API_URL + '?action=saveSubmittals&prefix=' + encodeURIComponent(callbackName) + '&type=' + encodeURIComponent(type) + '&rows=' + encodeURIComponent(JSON.stringify(rows));
+      script.src = API_URL + '?action=saveSubmittals&prefix=' + encodeURIComponent(callbackName) + '&type=' + encodeURIComponent(type) + '&rows=' + encodeURIComponent(JSON.stringify(rows)) + '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         showError('Unable to connect to the Google Apps Script API.');
         button.disabled = false;
@@ -1226,6 +1344,7 @@
       const callbackName = 'handleSearchResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to find this Submittal Code.');
           const rows = (response.rows || []).map(function(row) {
             return {
@@ -1256,7 +1375,7 @@
         }
       };
       const script = document.createElement('script');
-      script.src = API_URL + '?action=searchSubmittal&prefix=' + encodeURIComponent(callbackName) + '&submittalCode=' + encodeURIComponent(code);
+      script.src = API_URL + '?action=searchSubmittal&prefix=' + encodeURIComponent(callbackName) + '&submittalCode=' + encodeURIComponent(code) + '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         button.disabled = false;
         button.textContent = 'Search';
@@ -1469,6 +1588,7 @@
       const callbackName = 'handleUpdateQtyResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to update the quantity.');
           row.quantity = response.quantity !== undefined && response.quantity !== null ? response.quantity : quantity;
           row.editing = false;
@@ -1489,7 +1609,8 @@
         '&submittalCode=' + encodeURIComponent(searchState.submittalCode) +
         '&itemName=' + encodeURIComponent(row.itemName) +
         '&partNumber=' + encodeURIComponent(row.partNumber) +
-        '&quantity=' + encodeURIComponent(quantity);
+        '&quantity=' + encodeURIComponent(quantity) +
+        '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         showSearchModalError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
@@ -1507,6 +1628,7 @@
       const callbackName = 'handleDeleteRowResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to delete this row.');
           searchState.rows.splice(index, 1);
           renderSearchResultsTable();
@@ -1520,7 +1642,8 @@
       script.src = API_URL + '?action=deleteSubmittalRow&prefix=' + encodeURIComponent(callbackName) +
         '&submittalCode=' + encodeURIComponent(searchState.submittalCode) +
         '&itemName=' + encodeURIComponent(row.itemName) +
-        '&partNumber=' + encodeURIComponent(row.partNumber);
+        '&partNumber=' + encodeURIComponent(row.partNumber) +
+        '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         showSearchModalError('Unable to connect to the Google Apps Script API.');
         cleanupJsonp(script, callbackName);
@@ -1567,6 +1690,7 @@
       const callbackName = 'handleUpdateQtysResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to update the quantities.');
           searchState.editAll = false;
           button.classList.remove('active');
@@ -1587,7 +1711,8 @@
       const script = document.createElement('script');
       script.src = API_URL + '?action=updateSubmittalQuantities&prefix=' + encodeURIComponent(callbackName) +
         '&submittalCode=' + encodeURIComponent(searchState.submittalCode) +
-        '&rows=' + encodeURIComponent(JSON.stringify(rowsPayload));
+        '&rows=' + encodeURIComponent(JSON.stringify(rowsPayload)) +
+        '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         button.disabled = false;
         button.textContent = 'Save All';
@@ -1610,6 +1735,7 @@
       const callbackName = 'handleDeleteAllResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to delete these rows.');
           searchState.rows = [];
           closeSearchResultModal();
@@ -1622,7 +1748,7 @@
         }
       };
       const script = document.createElement('script');
-      script.src = API_URL + '?action=undoSubmittal&prefix=' + encodeURIComponent(callbackName) + '&submittalCode=' + encodeURIComponent(code);
+      script.src = API_URL + '?action=undoSubmittal&prefix=' + encodeURIComponent(callbackName) + '&submittalCode=' + encodeURIComponent(code) + '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         button.disabled = false;
         button.textContent = 'Delete All';
@@ -1690,6 +1816,7 @@
       const callbackName = 'handleDatabaseResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
         try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'The API returned an error.');
           databaseData = response.data || { itemNames: [], dependentPartNumbers: {}, submittalTypes: [] };
           populateItemData();
@@ -1704,7 +1831,7 @@
         }
       };
       const script = document.createElement('script');
-      script.src = API_URL + '?action=getDatabaseData&prefix=' + encodeURIComponent(callbackName);
+      script.src = API_URL + '?action=getDatabaseData&prefix=' + encodeURIComponent(callbackName) + '&token=' + encodeURIComponent(currentSessionToken);
       script.onerror = function() {
         if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
         showLoading(false);
