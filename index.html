@@ -809,6 +809,19 @@
         itemLabel.className = 'part-item-name';
         itemLabel.textContent = itemName;
 
+        const partNumbers = databaseData.dependentPartNumbers[itemName] || [];
+
+        if (!state.partNumber && partNumbers.length === 1 && !state.loading) {
+          state.partNumber = partNumbers[0];
+          state.boq = null;
+          state.previousRequests = null;
+          state.available = null;
+          state.quantity = '';
+          state.loading = false;
+          state.requestId = ++detailsRequestSequence;
+          loadPartDetails(itemName, state.partNumber, state.requestId);
+        }
+
         const select = document.createElement('select');
         select.className = 'part-select';
         select.dataset.itemName = itemName;
@@ -816,7 +829,6 @@
         placeholder.value = '';
         placeholder.textContent = state.loading ? 'Loading Part Numbers...' : 'Select Part Number';
         select.appendChild(placeholder);
-        const partNumbers = databaseData.dependentPartNumbers[itemName] || [];
         partNumbers.forEach(function(partNumber) {
           const option = document.createElement('option');
           option.value = partNumber;
