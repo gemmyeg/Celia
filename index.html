@@ -398,6 +398,18 @@
     .status-save-btn:hover:not(:disabled) { transform: translateY(-1px); background: oklch(0.36 0.13 18); box-shadow: 5px 5px 12px oklch(0.72 0.02 50 / .42), -5px -5px 12px oklch(1 0 0 / .9); }
     .status-save-btn:active:not(:disabled) { transform: translateY(0); box-shadow: inset 3px 3px 8px oklch(0.25 0.1 18 / .5), inset -3px -3px 8px oklch(0.55 0.16 22 / .3); }
     .status-save-btn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+    .row-status-select {
+      height: 34px; padding: 0 28px 0 10px; border: none; border-radius: 12px;
+      background-color: oklch(0.95 0.012 55);
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23824134' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat: no-repeat; background-position: right 9px center; background-size: 9px 6px;
+      appearance: none; -webkit-appearance: none; max-width: 170px;
+      box-shadow: inset 3px 3px 7px oklch(0.72 0.02 50 / .35), inset -3px -3px 7px oklch(1 0 0 / .8);
+      color: oklch(0.3 0.02 40); font-size: 12.5px; font-weight: 700; font-family: inherit; outline: none; cursor: pointer;
+      transition: box-shadow .16s ease;
+    }
+    .row-status-select:hover { box-shadow: inset 4px 4px 8px oklch(0.72 0.02 50 / .42), inset -4px -4px 8px oklch(1 0 0 / .88); }
+    .row-status-select:focus { box-shadow: inset 3px 3px 7px oklch(0.42 0.13 18 / .22), inset -3px -3px 7px oklch(1 0 0 / .8); }
     .row-action-btn.partly-save-btn {
       width: auto; padding: 0 10px; font-size: 11.5px; font-weight: 700; letter-spacing: .01em;
       color: oklch(0.42 0.13 18); background: oklch(0.90 0.03 18);
@@ -1712,7 +1724,7 @@
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to update the status.');
           searchState.status = response.status || newStatus;
           select.value = searchState.status;
-          searchState.rows.forEach(function(row) { row.status = searchState.status; });
+          searchState.rows.forEach(function(row) { row.status = searchState.status; row.targetStatus = undefined; });
           renderSearchResultsTable();
         } catch (error) {
           select.value = previousStatus;
@@ -1875,7 +1887,37 @@
         }
 
         const statusTd = document.createElement('td');
-        if (row.status) {
+        const statusOptions = databaseData.statusOptions || [];
+        if (statusOptions.length) {
+          const statusSelect = document.createElement('select');
+          statusSelect.className = 'row-status-select';
+          statusSelect.dataset.rowIndex = String(index);
+
+          if (!row.status) {
+            const noneOption = document.createElement('option');
+            noneOption.value = '';
+            noneOption.textContent = '—';
+            statusSelect.appendChild(noneOption);
+          } else if (!statusOptions.includes(row.status)) {
+            const legacyOption = document.createElement('option');
+            legacyOption.value = row.status;
+            legacyOption.textContent = row.status;
+            statusSelect.appendChild(legacyOption);
+          }
+
+          statusOptions.forEach(function(status) {
+            const option = document.createElement('option');
+            option.value = status;
+            option.textContent = status;
+            statusSelect.appendChild(option);
+          });
+
+          statusSelect.value = (row.targetStatus !== undefined ? row.targetStatus : row.status) || '';
+          statusSelect.addEventListener('change', function() {
+            row.targetStatus = statusSelect.value;
+          });
+          statusTd.appendChild(statusSelect);
+        } else if (row.status) {
           statusTd.textContent = row.status;
         } else {
           statusTd.textContent = '—';
@@ -1995,16 +2037,15 @@
         return;
       }
 
-      const statusSelect = document.getElementById('searchModalStatusSelect');
-      const newStatus = statusSelect ? statusSelect.value : '';
+      const newStatus = row.targetStatus !== undefined ? row.targetStatus : row.status;
 
       if (!newStatus) {
-        showSearchModalError('Please select a Status above first, then Partly Save.');
+        showSearchModalError('Please choose a Status in this row’s Status dropdown first, then Partly Save.');
         return;
       }
 
       if (newStatus === row.status) {
-        showSearchModalError('Please select a Status different from this row’s current Status ("' + (row.status || 'none') + '") to Partly Save.');
+        showSearchModalError('Please choose a Status different from this row’s current Status ("' + (row.status || 'none') + '") in its Status dropdown to Partly Save.');
         return;
       }
 
@@ -2018,6 +2059,7 @@
           const originalStatus = row.status;
           row.quantity = response.remainingQuantity !== undefined && response.remainingQuantity !== null ? response.remainingQuantity : row.quantity;
           row.status = response.remainingStatus !== undefined && response.remainingStatus !== null ? response.remainingStatus : originalStatus;
+          row.targetStatus = undefined;
           row.editing = false;
 
           searchState.rows.splice(index + 1, 0, {
