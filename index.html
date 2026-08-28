@@ -513,6 +513,8 @@
       <h3 id="modalTitle" class="modal-title">Submittal Saved</h3>
       <p id="modalSubtitle" class="modal-subtitle">Your submittal was saved successfully.</p>
       <div class="modal-result-row"><span class="modal-result-label">Type</span><span id="modalSelectedType" class="modal-result-value"></span></div>
+      <div class="modal-result-row" id="modalProjectNameRow" hidden><span class="modal-result-label">Project Name</span><span id="modalProjectName" class="modal-result-value"></span></div>
+      <div class="modal-result-row" id="modalZoneRow" hidden><span class="modal-result-label">Zone</span><span id="modalZone" class="modal-result-value"></span></div>
       <div class="modal-result-row"><span class="modal-result-label">Submittal Code</span><span id="modalSubmittalCode" class="modal-result-value"></span></div>
       <div class="modal-result-row"><span class="modal-result-label">Time</span><span id="modalTimestamp" class="modal-result-value"></span></div>
       <div class="modal-table-wrap">
@@ -887,6 +889,7 @@
       section.hidden = !required;
       if (!required) resetZoneSelections();
       updateSaveButtonState();
+      updateQuantityTable();
     }
 
     function setupZoneSelects() {
@@ -895,11 +898,13 @@
         hideError();
         hideSuccess();
         updateSaveButtonState();
+        updateQuantityTable();
       });
       document.getElementById('zoneSelect').addEventListener('change', function() {
         hideError();
         hideSuccess();
         updateSaveButtonState();
+        updateQuantityTable();
       });
     }
     /* =========================================================================== */
@@ -1124,6 +1129,13 @@
         return;
       }
 
+      /*
+       * When the selected Submittal Type requires a Project Name /
+       * Zone, Quantity stays locked on every row until BOTH are
+       * chosen — matches the same-page validation in handleSave().
+       */
+      const zonePending = isZoneRequiredForType(getSelectedType()) && (!getSelectedProjectName() || !getSelectedZone());
+
       selected.forEach(function(itemName) {
         if (!rowState[itemName]) rowState[itemName] = { partNumber: '', boq: null, previousRequests: null, available: null, quantity: '', loading: false, requestId: 0 };
         const state = rowState[itemName];
@@ -1188,7 +1200,7 @@
         else { availTd.textContent = '—'; availTd.className = 'muted'; }
 
         const qtyTd = document.createElement('td');
-        const canEnterQuantity = !!(state.partNumber && isValidAvailable(state.available) && Number(String(state.available).replace(/,/g, '')) > 0);
+        const canEnterQuantity = !!(state.partNumber && isValidAvailable(state.available) && Number(String(state.available).replace(/,/g, '')) > 0) && !zonePending;
         if (canEnterQuantity) qtyTd.className = 'qty-cell-active';
         const qtyInput = document.createElement('input');
         qtyInput.type = 'text';
@@ -1209,7 +1221,11 @@
           const availableNum = Number(String(state.available).replace(/,/g, ''));
           const hint = document.createElement('span');
           hint.className = 'quantity-hint';
-          hint.textContent = availableNum > 0 ? ('Maximum: ' + formatNumber(availableNum)) : 'No quantity available for this Part Number.';
+          if (zonePending && availableNum > 0) {
+            hint.textContent = 'Select Project Name and Zone first.';
+          } else {
+            hint.textContent = availableNum > 0 ? ('Maximum: ' + formatNumber(availableNum)) : 'No quantity available for this Part Number.';
+          }
           qtyTd.appendChild(hint);
         }
 
@@ -1343,7 +1359,7 @@
           const responseData = response.data || [];
           const submittalCode = (responseData.length && responseData[0].submittalCode) || '';
           const savedAt = (responseData.length && responseData[0].timestamp) ? new Date(responseData[0].timestamp) : new Date();
-          showResultModal(type, submittalCode, savedAt, responseData);
+          showResultModal(type, submittalCode, savedAt, responseData, projectName, zone);
           removeSavedItemsFromForm(rows.map(function(row) { return row.itemName; }));
         } catch (error) {
           showError(error && error.message ? error.message : 'Unable to save the submittals.');
@@ -1910,11 +1926,27 @@
       });
     }
 
-    function showResultModal(type, submittalCode, savedAt, rowsDetails) {
+    function showResultModal(type, submittalCode, savedAt, rowsDetails, projectName, zone) {
       const details = rowsDetails || [];
 
       document.getElementById('modalSubtitle').textContent = details.length + ' submittal row(s) saved successfully.';
       document.getElementById('modalSelectedType').textContent = type;
+
+      const projectNameRow = document.getElementById('modalProjectNameRow');
+      const zoneRow = document.getElementById('modalZoneRow');
+      if (projectName) {
+        document.getElementById('modalProjectName').textContent = projectName;
+        projectNameRow.hidden = false;
+      } else {
+        projectNameRow.hidden = true;
+      }
+      if (zone) {
+        document.getElementById('modalZone').textContent = zone;
+        zoneRow.hidden = false;
+      } else {
+        zoneRow.hidden = true;
+      }
+
       document.getElementById('modalSubmittalCode').textContent = submittalCode || '—';
       document.getElementById('modalTimestamp').textContent = formatTimestamp(savedAt);
 
