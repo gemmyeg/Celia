@@ -68,9 +68,15 @@
     .type-option-row.selected span { font-weight: 700; color: oklch(0.38 0.14 18); }
     .multi-select-trigger .placeholder-txt { color: oklch(0.55 0.012 50); font-weight: 500; }
     .empty-options { padding: 16px 10px; color: oklch(0.6 0.012 50); font-size: 13px; }
-    .selection-count { margin-top: 10px; font-size: 13px; color: oklch(0.5 0.012 50); font-weight: 600; }
+    .selection-summary-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; }
+    .selection-count { font-size: 13px; color: oklch(0.5 0.012 50); font-weight: 600; }
+    .clear-selected-btn { flex: none; height: 32px; padding: 0 14px; border: none; border-radius: 999px; background: oklch(0.90 0.05 25); color: oklch(0.5 0.19 25); font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: 3px 3px 8px oklch(0.72 0.02 50 / .3), -3px -3px 8px oklch(1 0 0 / .85); transition: box-shadow .16s ease, transform .16s ease; }
+    .clear-selected-btn:hover { transform: translateY(-1px); box-shadow: 4px 4px 10px oklch(0.72 0.02 50 / .35), -4px -4px 10px oklch(1 0 0 / .9); }
+    .clear-selected-btn:active { transform: translateY(0); box-shadow: inset 3px 3px 7px oklch(0.55 0.19 25 / .3), inset -3px -3px 7px oklch(1 0 0 / .6); }
     .selected-chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-    .selected-chip { display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 999px; background: oklch(0.88 0.05 230); box-shadow: 3px 3px 8px oklch(0.72 0.02 50 / .38), -3px -3px 8px oklch(1 0 0 / .9); color: oklch(0.32 0.09 245); font-size: 12px; font-weight: 700; }
+    .selected-chip { display: inline-flex; align-items: center; gap: 8px; padding: 8px 10px 8px 14px; border-radius: 999px; background: oklch(0.88 0.05 230); box-shadow: 3px 3px 8px oklch(0.72 0.02 50 / .38), -3px -3px 8px oklch(1 0 0 / .9); color: oklch(0.32 0.09 245); font-size: 12px; font-weight: 700; }
+    .selected-chip-remove { flex: none; width: 18px; height: 18px; padding: 0; border: none; border-radius: 50%; background: oklch(1 0 0 / .55); color: oklch(0.32 0.09 245); font-size: 13px; line-height: 1; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .15s ease, color .15s ease; }
+    .selected-chip-remove:hover { background: oklch(0.5 0.19 25); color: oklch(0.98 0.01 40); }
     .table-section { margin-top: 10px; margin-bottom: 30px; }
     .pn-select { width: 100%; min-width: 130px; height: 42px; padding: 0 26px 0 10px; border: none; border-radius: 12px; background-color: oklch(0.86 0.07 165); background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23205047' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>"); background-repeat: no-repeat; background-position: right 9px center; background-size: 10px 7px; appearance: none; -webkit-appearance: none; box-shadow: 3px 3px 8px oklch(0.72 0.02 50 / .3), -3px -3px 8px oklch(1 0 0 / .85); color: oklch(0.26 0.09 165); font-size: 12.5px; font-weight: 700; outline: none; cursor: pointer; transition: box-shadow .16s ease; }
     .pn-select:hover { box-shadow: 4px 4px 10px oklch(0.72 0.02 50 / .35), -4px -4px 10px oklch(1 0 0 / .9); }
@@ -424,7 +430,10 @@
             </div>
             <div id="itemOptionsList" class="options-list"></div>
           </div>
-          <div id="selectionCount" class="selection-count">0 items selected</div>
+          <div class="selection-summary-row">
+            <div id="selectionCount" class="selection-count">0 items selected</div>
+            <button type="button" id="clearSelectedItemsButton" class="clear-selected-btn" hidden>Clear All</button>
+          </div>
           <div id="selectedChipList" class="selected-chip-list"></div>
         </div>
       </div>
@@ -705,6 +714,14 @@
         hideSuccess();
       });
 
+      document.getElementById('clearSelectedItemsButton').addEventListener('click', function() {
+        selectedItemNames.clear();
+        renderItemOptions();
+        updateSelectedItemsUI();
+        hideError();
+        hideSuccess();
+      });
+
       document.addEventListener('click', function(event) {
         if (!document.getElementById('itemMultiSelect').contains(event.target)) closeItemPanel();
       });
@@ -777,16 +794,36 @@
       else if (selected.length === 1) display.textContent = selected[0];
       else display.textContent = selected.length + ' Item Names selected';
       document.getElementById('selectionCount').textContent = selected.length + (selected.length === 1 ? ' item selected' : ' items selected');
+      document.getElementById('clearSelectedItemsButton').hidden = !selected.length;
       const chipList = document.getElementById('selectedChipList');
       chipList.innerHTML = '';
       selected.forEach(function(itemName) {
         const chip = document.createElement('span');
         chip.className = 'selected-chip';
-        chip.textContent = itemName;
+        const label = document.createElement('span');
+        label.textContent = itemName;
+        chip.appendChild(label);
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'selected-chip-remove';
+        removeBtn.setAttribute('aria-label', 'Remove ' + itemName);
+        removeBtn.innerHTML = '&times;';
+        removeBtn.addEventListener('click', function(event) {
+          event.stopPropagation();
+          removeSelectedItem(itemName);
+        });
+        chip.appendChild(removeBtn);
         chipList.appendChild(chip);
       });
       updateQuantityTable();
       updateSaveButtonState();
+    }
+
+    function removeSelectedItem(itemName) {
+      selectedItemNames.delete(itemName);
+      updateSelectedItemsUI();
+      renderItemOptions();
+      hideError();
     }
 
     function handlePartNumberChange(itemName, partNumber) {
