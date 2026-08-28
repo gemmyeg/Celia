@@ -20,12 +20,23 @@
     .header p { margin: 0; font-size: 16px; line-height: 1.6; color: #64748b; }
     .type-section { margin-bottom: 30px; }
     .section-label { display: block; margin-bottom: 12px; font-size: 15px; font-weight: 700; color: #1e293b; }
-    .type-options { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; }
-    .type-option { position: relative; }
-    .type-checkbox { position: absolute; opacity: 0; pointer-events: none; }
-    .type-label { min-height: 50px; display: flex; align-items: center; justify-content: center; padding: 10px; border: 1px solid #d8dee8; border-radius: 10px; background: #fff; color: #334155; font-size: 14px; font-weight: 700; cursor: pointer; user-select: none; transition: all .2s ease; }
-    .type-label:hover { border-color: #94a3b8; background: #f8fafc; }
-    .type-checkbox:checked + .type-label { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; box-shadow: 0 0 0 2px rgba(37,99,235,.08); }
+    .type-select {
+      width: 100%;
+      height: 52px;
+      padding: 0 14px;
+      border: 1px solid #d8dee8;
+      border-radius: 10px;
+      background: #fff;
+      color: #111827;
+      font-size: 15px;
+      font-weight: 700;
+      outline: none;
+      cursor: pointer;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+    }
+    .type-select:hover:not(:disabled) { border-color: #94a3b8; }
+    .type-select:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
+    .type-select:disabled { background: #f8fafc; color: #aeb8c7; cursor: not-allowed; }
     .loading { margin-bottom: 30px; padding: 16px 18px; border-radius: 10px; background: #f8fafc; border: 1px solid #eef2f7; }
     .loading-header { display: flex; justify-content: space-between; align-items: center; gap: 15px; margin-bottom: 10px; }
     .loading-left { display: flex; align-items: center; gap: 10px; color: #475569; font-size: 14px; }
@@ -281,6 +292,7 @@
       outline: none;
       box-shadow: 0 0 0 3px rgba(37,99,235,.10);
     }
+    .row-qty-input.invalid { border-color: #dc2626; box-shadow: 0 0 0 3px rgba(220,38,38,.10); }
     .search-bulk-actions { display: flex; gap: 10px; margin-top: 20px; }
     .bulk-btn {
       flex: 1;
@@ -300,7 +312,6 @@
     /* =========================================================================== */
 
     @media (max-width: 700px) {
-      .type-options { grid-template-columns: repeat(2,1fr); }
       .part-selection-row { grid-template-columns: 1fr; gap: 8px; }
     }
     @media (max-width: 600px) {
@@ -326,13 +337,9 @@
 
       <div class="type-section">
         <span class="section-label">Submittal Type</span>
-        <div class="type-options">
-          <div class="type-option"><input type="checkbox" id="typeMIR" class="type-checkbox" value="MIR"><label for="typeMIR" class="type-label">MIR</label></div>
-          <div class="type-option"><input type="checkbox" id="typeWIR" class="type-checkbox" value="WIR"><label for="typeWIR" class="type-label">WIR</label></div>
-          <div class="type-option"><input type="checkbox" id="typeCIR" class="type-checkbox" value="CIR"><label for="typeCIR" class="type-label">CIR</label></div>
-          <div class="type-option"><input type="checkbox" id="typeHandover" class="type-checkbox" value="Handover"><label for="typeHandover" class="type-label">Handover</label></div>
-          <div class="type-option"><input type="checkbox" id="typeIPC" class="type-checkbox" value="IPC"><label for="typeIPC" class="type-label">IPC</label></div>
-        </div>
+        <select id="typeSelect" class="type-select" disabled>
+          <option value="">Loading submittal types...</option>
+        </select>
       </div>
 
       <div id="loading" class="loading">
@@ -448,7 +455,7 @@
   <script>
     const API_URL = 'https://script.google.com/macros/s/AKfycbwImmpgSw7Za4Z_8mUyQnGFI7EB38XFZhTOt-eeYOfKr19Zz-YIJNod3yeg2iWW-O245A/exec';
 
-    let databaseData = { itemNames: [], dependentPartNumbers: {} };
+    let databaseData = { itemNames: [], dependentPartNumbers: {}, submittalTypes: [] };
     let selectedItemNames = new Set();
     let rowState = {};
     let progressValue = 0;
@@ -459,7 +466,7 @@
     document.addEventListener('DOMContentLoaded', initialize);
 
     function initialize() {
-      setupTypeCheckboxes();
+      setupTypeSelect();
       setupItemMultiSelect();
       setupSaveButton();
       setupResultModal();
@@ -469,21 +476,36 @@
       loadDatabaseData();
     }
 
-    function setupTypeCheckboxes() {
-      document.querySelectorAll('.type-checkbox').forEach(function(checkbox) {
-        checkbox.addEventListener('change', function() {
-          if (this.checked) {
-            document.querySelectorAll('.type-checkbox').forEach(function(other) {
-              if (other !== checkbox) other.checked = false;
-            });
-            enableItemSelector(true);
-          } else if (!getSelectedType()) {
-            enableItemSelector(false);
-          }
-          hideError();
-          hideSuccess();
-        });
+    function setupTypeSelect() {
+      const select = document.getElementById('typeSelect');
+      select.addEventListener('change', function() {
+        enableItemSelector(!!select.value);
+        hideError();
+        hideSuccess();
       });
+    }
+
+    function populateTypeSelect() {
+      const select = document.getElementById('typeSelect');
+      const types = databaseData.submittalTypes || [];
+      const previousValue = select.value;
+
+      select.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = types.length ? 'Select Submittal Type' : 'No submittal types found';
+      select.appendChild(placeholder);
+
+      types.forEach(function(type) {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type;
+        select.appendChild(option);
+      });
+
+      select.disabled = types.length === 0;
+      select.value = types.includes(previousValue) ? previousValue : '';
     }
 
     function setupItemMultiSelect() {
@@ -861,12 +883,13 @@
     }
 
     function getSelectedType() {
-      const checkbox = document.querySelector('.type-checkbox:checked');
-      return checkbox ? checkbox.value : '';
+      const select = document.getElementById('typeSelect');
+      return select ? select.value : '';
     }
 
     function resetFormAfterSave() {
-      document.querySelectorAll('.type-checkbox').forEach(function(checkbox) { checkbox.checked = false; });
+      const select = document.getElementById('typeSelect');
+      if (select) select.value = '';
       selectedItemNames.clear();
       rowState = {};
       enableItemSelector(false);
@@ -1025,6 +1048,36 @@
       el.hidden = true;
     }
 
+    function isRowQuantityOverBoq(row) {
+      if (!row || row.boq === undefined || row.boq === null || !isValidBoq(row.boq)) return false;
+      const quantityStr = String(row.quantity === undefined || row.quantity === null ? '' : row.quantity).trim();
+      if (!quantityStr) return false;
+      const quantity = Number(quantityStr.replace(/,/g, ''));
+      if (!Number.isFinite(quantity)) return false;
+      const boq = Number(String(row.boq).replace(/,/g, ''));
+      return quantity > boq;
+    }
+
+    function getRowQtyInput(index) {
+      return document.querySelector('#searchResultsBody .row-qty-input[data-row-index="' + index + '"]');
+    }
+
+    function extractQuotedItemName(message) {
+      if (!message) return '';
+      const match = String(message).match(/for "([^"]+)"/);
+      return match ? match[1] : '';
+    }
+
+    function highlightInvalidRowsByItemName(itemName) {
+      if (!itemName || !searchState) return;
+      searchState.rows.forEach(function(row, idx) {
+        if (row.itemName === itemName) {
+          const input = getRowQtyInput(idx);
+          if (input) input.classList.add('invalid');
+        }
+      });
+    }
+
     function renderSearchResultsTable() {
       const body = document.getElementById('searchResultsBody');
       body.innerHTML = '';
@@ -1071,8 +1124,16 @@
           const input = document.createElement('input');
           input.type = 'text';
           input.className = 'row-qty-input';
+          input.inputMode = 'decimal';
+          input.autocomplete = 'off';
+          input.dataset.rowIndex = String(index);
           input.value = row.quantity;
-          input.addEventListener('input', function() { row.quantity = input.value; });
+          if (isRowQuantityOverBoq(row)) input.classList.add('invalid');
+          input.addEventListener('input', function() {
+            sanitizeQuantityInput(input);
+            row.quantity = input.value;
+            input.classList.toggle('invalid', isRowQuantityOverBoq(row));
+          });
           qtyTd.appendChild(input);
         } else {
           qtyTd.textContent = (row.quantity !== undefined && row.quantity !== null && row.quantity !== '') ? formatNumber(row.quantity) : '';
@@ -1127,6 +1188,14 @@
         return;
       }
 
+      if (isRowQuantityOverBoq(row)) {
+        const input = getRowQtyInput(index);
+        if (input) input.classList.add('invalid');
+        const boqValue = Number(String(row.boq).replace(/,/g, ''));
+        showSearchModalError('Quantity (' + formatNumber(Number(quantity)) + ') cannot be greater than PO BOQ (' + formatNumber(boqValue) + ') for "' + row.itemName + '".');
+        return;
+      }
+
       hideSearchModalError();
       const callbackName = 'handleUpdateQtyResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
       window[callbackName] = function(response) {
@@ -1136,7 +1205,12 @@
           row.editing = false;
           renderSearchResultsTable();
         } catch (error) {
-          showSearchModalError(error && error.message ? error.message : 'Unable to update the quantity.');
+          const message = error && error.message ? error.message : 'Unable to update the quantity.';
+          showSearchModalError(message);
+          if (/PO BOQ/i.test(message)) {
+            const input = getRowQtyInput(index);
+            if (input) input.classList.add('invalid');
+          }
         } finally {
           cleanupJsonp(script, callbackName);
         }
@@ -1207,6 +1281,13 @@
           showSearchModalError('Please enter a valid Quantity for Item: ' + row.itemName + '.');
           return;
         }
+        if (isRowQuantityOverBoq(row)) {
+          const input = getRowQtyInput(i);
+          if (input) input.classList.add('invalid');
+          const boqValue = Number(String(row.boq).replace(/,/g, ''));
+          showSearchModalError('Quantity (' + formatNumber(Number(quantity)) + ') cannot be greater than PO BOQ (' + formatNumber(boqValue) + ') for "' + row.itemName + '".');
+          return;
+        }
         rowsPayload.push({ itemName: row.itemName, partNumber: row.partNumber, quantity: quantity });
       }
 
@@ -1224,7 +1305,11 @@
           renderSearchResultsTable();
         } catch (error) {
           button.textContent = 'Save All';
-          showSearchModalError(error && error.message ? error.message : 'Unable to update the quantities.');
+          const message = error && error.message ? error.message : 'Unable to update the quantities.';
+          showSearchModalError(message);
+          if (/PO BOQ/i.test(message)) {
+            highlightInvalidRowsByItemName(extractQuotedItemName(message));
+          }
         } finally {
           button.disabled = false;
           cleanupJsonp(script, callbackName);
@@ -1337,7 +1422,7 @@
       window[callbackName] = function(response) {
         try {
           if (!response || !response.success) throw new Error(response && response.error ? response.error : 'The API returned an error.');
-          databaseData = response.data || { itemNames: [], dependentPartNumbers: {} };
+          databaseData = response.data || { itemNames: [], dependentPartNumbers: {}, submittalTypes: [] };
           populateItemData();
           completeProgress();
           document.getElementById('loadingText').textContent = 'Database loaded successfully.';
@@ -1361,6 +1446,7 @@
     }
 
     function populateItemData() {
+      populateTypeSelect();
       document.getElementById('itemNameDisplay').textContent = 'Select Item Name';
       document.getElementById('selectionCount').textContent = '0 items selected';
       renderItemOptions();
