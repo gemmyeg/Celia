@@ -372,6 +372,22 @@
     }
     .search-modal-requestedby { margin: -4px 0 6px; font-size: 13px; font-weight: 700; color: oklch(0.42 0.13 18); }
     .search-modal-timestamp { margin: -4px 0 20px; font-size: 13px; color: oklch(0.6 0.012 50); }
+    .status-select-row { display: flex; align-items: center; gap: 10px; margin: -4px 0 20px; }
+    .status-select-row[hidden] { display: none; }
+    .status-select-label { flex: none; font-size: 12.5px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: oklch(0.4 0.015 50); }
+    .status-select {
+      height: 40px; padding: 0 36px 0 14px; border: none; border-radius: 14px;
+      background-color: oklch(0.95 0.012 55);
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'><path d='M1 1l5 5 5-5' fill='none' stroke='%23824134' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+      background-repeat: no-repeat; background-position: right 14px center; background-size: 10px 7px;
+      appearance: none; -webkit-appearance: none;
+      box-shadow: inset 4px 4px 9px oklch(0.72 0.02 50 / .38), inset -4px -4px 9px oklch(1 0 0 / .85);
+      color: oklch(0.3 0.02 40); font-size: 13.5px; font-weight: 700; font-family: inherit; outline: none; cursor: pointer;
+      transition: box-shadow .2s ease, opacity .16s ease;
+    }
+    .status-select:hover:not(:disabled) { box-shadow: inset 5px 5px 11px oklch(0.72 0.02 50 / .45), inset -5px -5px 11px oklch(1 0 0 / .95); }
+    .status-select:focus { box-shadow: inset 4px 4px 9px oklch(0.42 0.13 18 / .24), inset -4px -4px 9px oklch(1 0 0 / .85); }
+    .status-select:disabled { opacity: .6; cursor: not-allowed; }
     .search-empty-state { padding: 24px 10px; text-align: center; color: oklch(0.6 0.012 50); font-size: 14px; }
     .row-actions-cell { text-align: right; white-space: nowrap; }
     .row-action-btn {
@@ -604,6 +620,12 @@
       <h3 id="searchModalTitle" class="modal-title">Search results for</h3>
       <p id="searchModalRequestedBy" class="search-modal-requestedby" hidden></p>
       <p id="searchModalTimestamp" class="search-modal-timestamp"></p>
+      <div id="searchModalStatusRow" class="status-select-row" hidden>
+        <label for="searchModalStatusSelect" class="status-select-label">Status</label>
+        <select id="searchModalStatusSelect" class="status-select">
+          <option value="">Select Status</option>
+        </select>
+      </div>
       <div id="searchModalError" class="modal-error" hidden></div>
       <div class="modal-table-wrap search-table-wrap">
         <table class="modal-details-table">
@@ -1568,6 +1590,7 @@
             type: response.type || '',
             timestamp: parseSheetTimestamp(response.timestamp),
             requestedBy: response.requestedBy || '',
+            status: response.status || '',
             rows: rows,
             editAll: false
           };
@@ -1604,6 +1627,75 @@
       });
       document.getElementById('deleteAllButton').addEventListener('click', handleDeleteAllResults);
       document.getElementById('editAllButton').addEventListener('click', handleEditAllToggle);
+      document.getElementById('searchModalStatusSelect').addEventListener('change', handleStatusChange);
+    }
+
+    function populateSearchModalStatusSelect() {
+      const row = document.getElementById('searchModalStatusRow');
+      const select = document.getElementById('searchModalStatusSelect');
+      const options = databaseData.statusOptions || [];
+
+      if (!options.length) {
+        row.hidden = true;
+        return;
+      }
+
+      row.hidden = false;
+      select.innerHTML = '';
+
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select Status';
+      select.appendChild(placeholder);
+
+      options.forEach(function(status) {
+        const option = document.createElement('option');
+        option.value = status;
+        option.textContent = status;
+        select.appendChild(option);
+      });
+
+      select.value = options.includes(searchState.status) ? searchState.status : '';
+      select.disabled = false;
+    }
+
+    function handleStatusChange() {
+      if (!searchState) return;
+      const select = document.getElementById('searchModalStatusSelect');
+      const newStatus = select.value;
+      const previousStatus = searchState.status;
+      if (!newStatus || newStatus === previousStatus) return;
+
+      hideSearchModalError();
+      select.disabled = true;
+
+      const callbackName = 'handleUpdateStatusResponse_' + Date.now() + '_' + Math.floor(Math.random() * 10000);
+      window[callbackName] = function(response) {
+        try {
+          if (response && response.authRequired) { handleAuthRequired(); return; }
+          if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Unable to update the status.');
+          searchState.status = response.status || newStatus;
+          select.value = searchState.status;
+        } catch (error) {
+          select.value = previousStatus;
+          showSearchModalError(error && error.message ? error.message : 'Unable to update the status.');
+        } finally {
+          select.disabled = false;
+          cleanupJsonp(script, callbackName);
+        }
+      };
+      const script = document.createElement('script');
+      script.src = API_URL + '?action=updateSubmittalStatus&prefix=' + encodeURIComponent(callbackName) +
+        '&submittalCode=' + encodeURIComponent(searchState.submittalCode) +
+        '&status=' + encodeURIComponent(newStatus) +
+        '&token=' + encodeURIComponent(currentSessionToken);
+      script.onerror = function() {
+        select.value = previousStatus;
+        select.disabled = false;
+        showSearchModalError('Unable to connect to the Google Apps Script API.');
+        cleanupJsonp(script, callbackName);
+      };
+      document.body.appendChild(script);
     }
 
     function showSearchResultModal() {
@@ -1617,6 +1709,7 @@
         requestedByEl.hidden = true;
       }
       document.getElementById('searchModalTimestamp').textContent = searchState.timestamp ? formatFullTimestamp(searchState.timestamp) : '';
+      populateSearchModalStatusSelect();
       hideSearchModalError();
 
       const editAllButton = document.getElementById('editAllButton');
